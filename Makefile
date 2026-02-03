@@ -1,7 +1,7 @@
 .PHONY: submodules venv init format flake8 yapf mypy lint test-with-clean test-without-clean dist pypi_check pypi_upload
 
 STATIC_ANALYSER_IMAGE := "docker.onedata.org/python_static_analyser:v9"
-SRC_FILES := setup.py fs/ tests/
+SRC_FILES := setup.py onedatafsspec/ tests/
 
 UID := $(shell id -u)
 GID := $(shell id -g)
@@ -59,8 +59,7 @@ static-analysis:
 
 type-check:
 	$(call print_target)
-	$(call run_python_command, "-m mypy --strict --disallow-untyped-defs --show-error-context \
-        fs/onedatarestfs/onedatarestfs.py fs/onedatarestfs/errors.py")
+	$(call run_python_command, "-m mypy --strict --disallow-untyped-defs --show-error-context onedatafsspec")
 
 lint: black-check static-analysis type-check
 	@:
@@ -80,17 +79,17 @@ endef
 
 test-with-clean:
 	$(call print_target)
-	$(call run_tests, "-m pytest -s -x --cov=fs/onedatarestfs --junitxml=onedatarestfs-tests-results.xml tests")
+	$(call run_tests, "-m pytest -s -x --cov=onedatafsspec --junitxml=onedatafsspec-tests-results.xml tests")
 
 test-without-clean:
 	$(call print_target)
-	$(call run_tests_no_clean, "-m pytest -s -x --cov=fs/onedatarestfs --junitxml=onedatarestfs-tests-results.xml tests")
+	$(call run_tests_no_clean, "-m pytest -s -x --cov=onedatafsspec --junitxml=onedatafsspec-tests-results.xml tests")
 
 ##
 ## Release
 ##
 
-PYPI_PACKAGE_NAME := fs.onedatarestfs
+PYPI_PACKAGE_NAME := onedatafsspec
 
 dist:
 	$(call print_target)
