@@ -1,0 +1,11 @@
+__pycache__
+.idea
+.coverage
+.idea
+.tox
+.coverage
+onedatafsspec.egg-info/
+test.py
+onedatafssoec-tests-results.xml
+dist/
+build/
