@@ -1,6 +1,11 @@
+./onedatafilerestclient
+fsspec
 pytest
 pytest-cov
 pytest-mock
 black
 flake8
 mypy
+six
+pylint
+pyyaml

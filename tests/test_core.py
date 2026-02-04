@@ -140,7 +140,7 @@ class TestOnedataFileSystem:
 
     def test_info_not_found(self, fs):
         """Test getting info for non-existent file."""
-        fs.client.get_attributes.side_effect = OnedataRESTError("not found", 404)
+        fs.client.get_attributes.side_effect = OnedataRESTError("enoent", 404)
 
         with pytest.raises(FileNotFoundError):
             fs.info("space1/nonexistent.txt")
@@ -171,7 +171,7 @@ class TestOnedataFileSystem:
         """Test checking if file exists."""
         assert fs.exists("space1/test.txt") is True
 
-        fs.client.get_attributes.side_effect = OnedataRESTError("not found", 404)
+        fs.client.get_attributes.side_effect = OnedataRESTError("enoent", 404)
         assert fs.exists("space1/nonexistent.txt") is False
 
     def test_isdir(self, fs):
@@ -211,7 +211,7 @@ class TestOnedataFileSystem:
 
     def test_rm_file_not_found(self, fs):
         """Test removing non-existent file."""
-        fs.client.remove.side_effect = OnedataRESTError("not found", 404)
+        fs.client.remove.side_effect = OnedataRESTError("enoent", 404)
 
         with pytest.raises(FileNotFoundError):
             fs.rm_file("space1/nonexistent.txt")

@@ -118,14 +118,14 @@ def wait_for_support_sync(
 
     while True:
         try:
-            krakow_client.get_file_id("test_onedatarestfs")
-            paris_client.get_file_id("test_onedatarestfs")
+            krakow_client.get_file_id("test_onedatafsspec")
+            paris_client.get_file_id("test_onedatafsspec")
             time.sleep(1)
         except (OnedataError, requests.RequestException) as exc:
             if retry_count == 0:
                 raise RuntimeError(
                     "ERROR: Space support information for "
-                    '"test_onedatarestfs" did not synchronize '
+                    '"test_onedatafsspec" did not synchronize '
                     "properly"
                 ) from exc
             retry_count -= 1
@@ -133,7 +133,7 @@ def wait_for_support_sync(
 
         break
 
-    print("INFO: Space 'test_onedatarestfs' support information synced")
+    print("INFO: Space 'test_onedatafsspec' support information synced")
 
 
 @pytest.fixture(scope=FIXTURE_SCOPE)

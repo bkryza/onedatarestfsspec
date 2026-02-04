@@ -153,8 +153,14 @@ class OnedataFileSystem(AbstractFileSystem):
                 "Both onezone_host and token must be provided either as parameters or environment variables"
             )
 
+        # Extract hostname/IP from onezone_host if it includes protocol
+        onezone_host_for_client = self.onezone_host
+        if self.onezone_host.startswith(('http://', 'https://')):
+            parsed = urlparse(self.onezone_host)
+            onezone_host_for_client = parsed.hostname or parsed.netloc
+
         self.client = OnedataFileRESTClient(
-            onezone_host=self.onezone_host,
+            onezone_host=onezone_host_for_client,
             token=self.token,
             preferred_providers=self.preferred_providers,
             verify_ssl=self.verify_ssl,
@@ -254,7 +260,7 @@ class OnedataFileSystem(AbstractFileSystem):
             return files
 
         except OnedataError as e:
-            if "not found" in str(e).lower():
+            if "enoent" in str(e).lower():
                 raise FileNotFoundError(f"Path not found: {path}")
             raise
 
@@ -301,7 +307,7 @@ class OnedataFileSystem(AbstractFileSystem):
             }
 
         except OnedataError as e:
-            if "not found" in str(e).lower():
+            if "enoent" in str(e).lower():
                 raise FileNotFoundError(f"Path not found: {path}")
             raise
 
@@ -349,7 +355,7 @@ class OnedataFileSystem(AbstractFileSystem):
                 return self.client.get_file_content(space_name, file_path=file_path)
 
         except OnedataError as e:
-            if "not found" in str(e).lower():
+            if "enoent" in str(e).lower():
                 raise FileNotFoundError(f"File not found: {path}")
             raise
 
@@ -437,7 +443,7 @@ class OnedataFileSystem(AbstractFileSystem):
         try:
             self.client.remove(space_name, file_path=file_path)
         except OnedataError as e:
-            if "not found" in str(e).lower():
+            if "enoent" in str(e).lower():
                 raise FileNotFoundError(f"File not found: {path}")
             raise
 
@@ -462,7 +468,7 @@ class OnedataFileSystem(AbstractFileSystem):
                 space_name, file_path=dir_path, file_type="DIR", create_parents=True
             )
         except OnedataError as e:
-            if not exist_ok or "exists" not in str(e).lower():
+            if not exist_ok or "eexist" not in str(e).lower():
                 raise
 
     def rmdir(self, path: str) -> None:

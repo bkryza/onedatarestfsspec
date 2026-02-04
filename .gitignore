@@ -9,3 +9,5 @@ test.py
 onedatafssoec-tests-results.xml
 dist/
 build/
+fs.onedatarestfs.egg-info/
+tests/README_integration.md
