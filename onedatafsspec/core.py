@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from fsspec import AbstractFileSystem
 from fsspec.spec import AbstractBufferedFile
 from fsspec.utils import infer_storage_options
+
 from onedatafilerestclient import OnedataFileRESTClient
 from onedatafilerestclient.errors import (
     NoAvailableProviderForSpaceError,
@@ -155,7 +156,7 @@ class OnedataFileSystem(AbstractFileSystem):
 
         # Extract hostname/IP from onezone_host if it includes protocol
         onezone_host_for_client = self.onezone_host
-        if self.onezone_host.startswith(('http://', 'https://')):
+        if self.onezone_host.startswith(("http://", "https://")):
             parsed = urlparse(self.onezone_host)
             onezone_host_for_client = parsed.hostname or parsed.netloc
 

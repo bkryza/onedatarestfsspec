@@ -9,9 +9,10 @@ import uuid
 
 import pytest
 import requests
+from urllib3.util import connection
+
 from onedatafilerestclient import OnedataFileRESTClient
 from onedatafilerestclient.errors import OnedataError
-from urllib3.util import connection
 
 
 def trace_requests_messages() -> None:

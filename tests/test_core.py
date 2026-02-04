@@ -3,8 +3,8 @@
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from onedatafilerestclient.errors import OnedataError, OnedataRESTError
 
+from onedatafilerestclient.errors import OnedataError, OnedataRESTError
 from onedatafsspec.core import OnedataFile, OnedataFileSystem
 
 
