@@ -6,7 +6,7 @@ __pycache__
 .coverage
 onedatafsspec.egg-info/
 test.py
-onedatafssoec-tests-results.xml
+onedatafsspec-tests-results.xml
 dist/
 build/
 fs.onedatarestfs.egg-info/
