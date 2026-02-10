@@ -1,18 +1,18 @@
-"""Integration tests for OnedataFSSpec using actual Onedata deployment."""
+"""Integration tests for OnedataRESTFSSpec using actual Onedata deployment."""
 
 import random
 import time
 
 import pytest
 
-from onedatafsspec.core import OnedataFileSystem
+from onedatarestfsspec.core import OnedataFileSystem
 
 
 @pytest.mark.integration
 def test_file_operations_integration(onezone_ip, onezone_admin_token):
     """Test basic file operations on actual Onedata deployment.
 
-    This test creates a file in the test_onedatafsspec space, writes data to it,
+    This test creates a file in the test_onedatarestfsspec space, writes data to it,
     reads it back, and then removes it.
     """
     # Create filesystem instance using the test environment
@@ -26,21 +26,21 @@ def test_file_operations_integration(onezone_ip, onezone_admin_token):
     timestamp = int(time.time())
     random_id = random.randint(1000, 9999)
     test_filename = f"fsspec_test_{timestamp}_{random_id}.txt"
-    test_file_path = f"/test_onedatafsspec/{test_filename}"
+    test_file_path = f"/test_onedatarestfsspec/{test_filename}"
 
     test_content = (
-        b"Hello, OnedataFSSpec! This is a test file.\nSecond line of content.\n"
+        b"Hello, OnedataRESTFSSpec! This is a test file.\nSecond line of content.\n"
     )
 
     try:
         # Verify we can list the test space
         spaces = fs.ls("/")
         assert (
-            "test_onedatafsspec" in spaces
-        ), f"test_onedatafsspec space not found in {spaces}"
+            "test_onedatarestfsspec" in spaces
+        ), f"test_onedatarestfsspec space not found in {spaces}"
 
         # List initial contents of test space
-        initial_files = fs.ls("/test_onedatafsspec/")
+        initial_files = fs.ls("/test_onedatarestfsspec/")
         print(f"Initial files in test space: {initial_files}")
 
         # Test file creation and writing
@@ -80,7 +80,7 @@ def test_file_operations_integration(onezone_ip, onezone_admin_token):
         ), "Partial read should match expected slice"
 
         # Verify file appears in directory listing
-        files_after_creation = fs.ls("/test_onedatafsspec/")
+        files_after_creation = fs.ls("/test_onedatarestfsspec/")
         assert any(
             test_filename in f for f in files_after_creation
         ), f"Test file should appear in directory listing: {files_after_creation}"
@@ -120,7 +120,7 @@ def test_directory_operations_integration(onezone_ip, onezone_admin_token):
     timestamp = int(time.time())
     random_id = random.randint(1000, 9999)
     test_dirname = f"fsspec_test_dir_{timestamp}_{random_id}"
-    test_dir_path = f"/test_onedatafsspec/{test_dirname}"
+    test_dir_path = f"/test_onedatarestfsspec/{test_dirname}"
     test_file_in_dir = f"{test_dir_path}/nested_test_file.txt"
 
     test_content = b"Content in nested directory"
@@ -191,8 +191,8 @@ def test_filesystem_info_integration(onezone_ip, onezone_admin_token):
     assert isinstance(spaces, list), "Spaces should be returned as a list"
     assert len(spaces) > 0, "Should have at least one space"
     assert (
-        "test_onedatafsspec" in spaces
-    ), "test_onedatafsspec space should be available"
+        "test_onedatarestfsspec" in spaces
+    ), "test_onedatarestfsspec space should be available"
 
     # Test detailed space listing
     spaces_detail = fs.ls("/", detail=True)
@@ -203,7 +203,7 @@ def test_filesystem_info_integration(onezone_ip, onezone_admin_token):
     ), "Each space should have name and type"
 
     # Test space content listing
-    test_space_files = fs.ls("/test_onedatafsspec/", detail=True)
+    test_space_files = fs.ls("/test_onedatarestfsspec/", detail=True)
     print(f"Files in test space: {test_space_files}")
 
     # Verify filesystem protocol

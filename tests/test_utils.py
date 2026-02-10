@@ -2,14 +2,9 @@
 
 import pytest
 
-from onedatafsspec.utils import (
-    get_basename,
-    get_parent_path,
-    join_onedata_path,
-    normalize_onedata_path,
-    split_onedata_path,
-    validate_onedata_path,
-)
+from onedatarestfsspec.utils import (get_basename, get_parent_path,
+                                     join_onedata_path, normalize_onedata_path,
+                                     split_onedata_path, validate_onedata_path)
 
 
 class TestNormalizeOnedataPath:

@@ -1,4 +1,4 @@
-"""OnedataFSSpec: fsspec filesystem implementation for Onedata."""
+"""OnedataRESTFSSpec: fsspec filesystem implementation for Onedata."""
 
 from .core import OnedataFileSystem
 

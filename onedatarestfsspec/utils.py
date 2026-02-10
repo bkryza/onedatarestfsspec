@@ -1,4 +1,4 @@
-"""Utility functions for OnedataFSSpec."""
+"""Utility functions for OnedataRESTFSSpec."""
 
 import posixpath
 from typing import Optional, Tuple

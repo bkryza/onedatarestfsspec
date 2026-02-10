@@ -1,4 +1,4 @@
-"""Configuration handling for OnedataFSSpec."""
+"""Configuration handling for OnedataRESTFSSpec."""
 
 import os
 from typing import Dict, List, Optional

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from onedatafilerestclient.errors import OnedataError, OnedataRESTError
-from onedatafsspec.core import OnedataFile, OnedataFileSystem
+from onedatarestfsspec.core import OnedataFile, OnedataFileSystem
 
 
 @pytest.fixture
@@ -39,9 +39,9 @@ def fs():
     client_mock.remove.return_value = None
 
     with patch(
-        "onedatafsspec.core.OnedataFileRESTClient", return_value=client_mock
+        "onedatarestfsspec.core.OnedataFileRESTClient", return_value=client_mock
     ), patch(
-        "onedatafsspec.core.get_onedata_config_from_env",
+        "onedatarestfsspec.core.get_onedata_config_from_env",
         return_value={
             "onezone_host": None,
             "token": None,
@@ -66,7 +66,7 @@ class TestOnedataFileSystem:
 
     def test_init_with_valid_params(self):
         """Test initialization with valid parameters."""
-        with patch("onedatafsspec.core.OnedataFileRESTClient"):
+        with patch("onedatarestfsspec.core.OnedataFileRESTClient"):
             fs = OnedataFileSystem(
                 onezone_host="https://onezone.example.com", token="test_token"
             )
@@ -76,7 +76,7 @@ class TestOnedataFileSystem:
 
     def test_init_missing_params(self):
         """Test initialization with missing required parameters."""
-        with patch("onedatafsspec.core.get_onedata_config_from_env") as mock_env_config:
+        with patch("onedatarestfsspec.core.get_onedata_config_from_env") as mock_env_config:
             mock_env_config.return_value = {
                 "onezone_host": None,
                 "token": None,

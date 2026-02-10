@@ -1,1 +1,1 @@
-"""Test suite for OnedataFSSpec."""
+"""Test suite for OnedataRESTFSSpec."""

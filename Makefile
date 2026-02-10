@@ -1,7 +1,7 @@
 .PHONY: submodules venv init format flake8 yapf mypy lint test-with-clean test-without-clean dist pypi_check pypi_upload
 
 STATIC_ANALYSER_IMAGE := "docker.onedata.org/python_static_analyser:v9"
-SRC_FILES := setup.py onedatafsspec/ tests/
+SRC_FILES := onedatarestfsspec/ tests/
 
 UID := $(shell id -u)
 GID := $(shell id -g)

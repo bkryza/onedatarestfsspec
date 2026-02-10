@@ -3,12 +3,12 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "onedatafsspec"
+name = "onedatarestfsspec"
 version = "25.0.0"
 authors = [
     {name = "Bartek Kryza", email = "bkryza@gmail.com"},
 ]
-description = "Onedata filesystem implementation for fsspec"
+description = "Onedata filesystem REST implementation for fsspec"
 readme = "README.md"
 license = {text = "MIT"}
 keywords = ["fsspec", "Onedata", "filesystem"]
@@ -34,7 +34,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=6.0.0",
-    "pytest-cov>=2.0.0", 
+    "pytest-cov>=2.0.0",
     "pytest-mock>=3.0.0",
 ]
 
@@ -43,10 +43,10 @@ Homepage = "https://github.com/onedata/onedatafsspec"
 Repository = "https://github.com/onedata/onedatafsspec"
 
 [project.entry-points."fsspec.specs"]
-onedata = "onedatafsspec.core:OnedataFileSystem"
+onedata = "onedatarestfsspec.core:OnedataFileSystem"
 
 [tool.setuptools.packages.find]
-include = ["onedatafsspec*"]
+include = ["onedatarestfsspec*"]
 
 [tool.setuptools.package-data]
 onedatafsspec = ["*.txt", "*.md"]
