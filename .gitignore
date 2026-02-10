@@ -5,9 +5,11 @@ __pycache__
 .tox
 .coverage
 onedatafsspec.egg-info/
+onedatarestfsspec.egg-info/
 test.py
 onedatafsspec-tests-results.xml
+onedatarestfsspec-tests-results.xml
 dist/
 build/
-fs.onedatarestfs.egg-info/
+onedatarestfs.egg-info/
 tests/README_integration.md

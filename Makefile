@@ -59,7 +59,7 @@ static-analysis:
 
 type-check:
 	$(call print_target)
-	$(call run_python_command, "-m mypy --strict --disallow-untyped-defs --show-error-context onedatafsspec")
+	$(call run_python_command, "-m mypy --strict --disallow-untyped-defs --show-error-context onedatarestfsspec")
 
 lint: black-check static-analysis type-check
 	@:
@@ -79,17 +79,17 @@ endef
 
 test-with-clean:
 	$(call print_target)
-	$(call run_tests, "-m pytest -s -x --cov=onedatafsspec --junitxml=onedatafsspec-tests-results.xml tests")
+	$(call run_tests, "-m pytest -s -x --cov=onedatarestfsspec --junitxml=onedatarestfsspec-tests-results.xml tests")
 
 test-without-clean:
 	$(call print_target)
-	$(call run_tests_no_clean, "-m pytest -s -x --cov=onedatafsspec --junitxml=onedatafsspec-tests-results.xml tests")
+	$(call run_tests_no_clean, "-m pytest -s -x --cov=onedatarestfsspec --junitxml=onedatarestfsspec-tests-results.xml tests")
 
 ##
 ## Release
 ##
 
-PYPI_PACKAGE_NAME := onedatafsspec
+PYPI_PACKAGE_NAME := onedatarestfsspec
 
 dist:
 	$(call print_target)
