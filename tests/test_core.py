@@ -38,17 +38,18 @@ def fs():
     client_mock.put_file_content.return_value = None
     client_mock.remove.return_value = None
 
-    with patch(
-        "onedatarestfsspec.core.OnedataFileRESTClient", return_value=client_mock
-    ), patch(
-        "onedatarestfsspec.core.get_onedata_config_from_env",
-        return_value={
-            "onezone_host": None,
-            "token": None,
-            "preferred_providers": None,
-            "verify_ssl": True,
-            "timeout": 30,
-        },
+    with (
+        patch("onedatarestfsspec.core.OnedataFileRESTClient", return_value=client_mock),
+        patch(
+            "onedatarestfsspec.core.get_onedata_config_from_env",
+            return_value={
+                "onezone_host": None,
+                "token": None,
+                "preferred_providers": None,
+                "verify_ssl": True,
+                "timeout": 30,
+            },
+        ),
     ):
 
         filesystem = OnedataFileSystem(
@@ -76,7 +77,9 @@ class TestOnedataFileSystem:
 
     def test_init_missing_params(self):
         """Test initialization with missing required parameters."""
-        with patch("onedatarestfsspec.core.get_onedata_config_from_env") as mock_env_config:
+        with patch(
+            "onedatarestfsspec.core.get_onedata_config_from_env"
+        ) as mock_env_config:
             mock_env_config.return_value = {
                 "onezone_host": None,
                 "token": None,
@@ -263,12 +266,14 @@ class TestOnedataFile:
     def test_init_read_mode(self, fs):
         """Test OnedataFile initialization in read mode."""
         # Mock the info method that gets called during file init
-        with patch.object(
-            fs,
-            "info",
-            return_value={"name": "space1/test.txt", "size": 100, "type": "file"},
-        ), patch.object(fs, "_get_file_size", return_value=100), patch.object(
-            fs, "_get_file_id", return_value="file_id_123"
+        with (
+            patch.object(
+                fs,
+                "info",
+                return_value={"name": "space1/test.txt", "size": 100, "type": "file"},
+            ),
+            patch.object(fs, "_get_file_size", return_value=100),
+            patch.object(fs, "_get_file_id", return_value="file_id_123"),
         ):
 
             file_obj = OnedataFile(fs, "space1/test.txt", "rb")
@@ -279,12 +284,14 @@ class TestOnedataFile:
 
     def test_fetch_range(self, fs):
         """Test fetching byte range from file."""
-        with patch.object(
-            fs,
-            "info",
-            return_value={"name": "space1/test.txt", "size": 100, "type": "file"},
-        ), patch.object(fs, "_get_file_size", return_value=100), patch.object(
-            fs, "_get_file_id", return_value="file_id_123"
+        with (
+            patch.object(
+                fs,
+                "info",
+                return_value={"name": "space1/test.txt", "size": 100, "type": "file"},
+            ),
+            patch.object(fs, "_get_file_size", return_value=100),
+            patch.object(fs, "_get_file_id", return_value="file_id_123"),
         ):
 
             file_obj = OnedataFile(fs, "space1/test.txt", "rb")

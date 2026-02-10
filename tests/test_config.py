@@ -5,8 +5,11 @@ from unittest.mock import patch
 
 import pytest
 
-from onedatarestfsspec.config import (get_onedata_config_from_env,
-                                      merge_config, parse_onedata_url)
+from onedatarestfsspec.config import (
+    get_onedata_config_from_env,
+    merge_config,
+    parse_onedata_url,
+)
 
 
 class TestParseOnedataUrl:
