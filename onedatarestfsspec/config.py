@@ -1,11 +1,11 @@
 """Configuration handling for OnedataRESTFSSpec."""
 
 import os
-from typing import Dict, Optional
+from typing import Any, Dict, List, Union
 from urllib.parse import parse_qs, urlparse
 
 
-def parse_onedata_url(url: str) -> Dict[str, str]:
+def parse_onedata_url(url: str) -> Dict[str, Any]:
     """Parse a Onedata URL and extract connection parameters.
 
     Expected format: onedata://token@onezone.example.com/space/path
@@ -52,7 +52,9 @@ def parse_onedata_url(url: str) -> Dict[str, str]:
     return config
 
 
-def get_onedata_config_from_env() -> Dict[str, Optional[str]]:
+def get_onedata_config_from_env() -> (
+    Dict[str, Union[str, List[str], bool, float, None]]
+):
     """Get Onedata configuration from environment variables.
 
     Returns
@@ -87,7 +89,11 @@ def get_onedata_config_from_env() -> Dict[str, Optional[str]]:
     }
 
 
-def merge_config(url_config: Dict, env_config: Dict, explicit_config: Dict) -> Dict:
+def merge_config(
+    url_config: Dict[str, Any],
+    env_config: Dict[str, Any],
+    explicit_config: Dict[str, Any],
+) -> Dict[str, Any]:
     """Merge configuration from different sources.
 
     Priority: explicit_config > url_config > env_config
