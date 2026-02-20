@@ -8,6 +8,18 @@ import pytest
 from onedatarestfsspec.core import OnedataFileSystem
 
 
+def _generate_test_file_info():
+    """Generate unique test file information."""
+    timestamp = int(time.time())
+    random_id = random.randint(1000, 9999)
+    filename = f"fsspec_test_{timestamp}_{random_id}.txt"
+    path = f"/test_onedatarestfsspec/{filename}"
+    content = (
+        b"Hello, OnedataRESTFSSpec! This is a test file.\nSecond line of content.\n"
+    )
+    return filename, path, content
+
+
 @pytest.mark.integration
 def test_file_operations_integration(onezone_ip, onezone_admin_token):
     """Test basic file operations on actual Onedata deployment.
@@ -23,37 +35,24 @@ def test_file_operations_integration(onezone_ip, onezone_admin_token):
     )
 
     # Generate unique test file name to avoid conflicts
-    timestamp = int(time.time())
-    random_id = random.randint(1000, 9999)
-    test_filename = f"fsspec_test_{timestamp}_{random_id}.txt"
-    test_file_path = f"/test_onedatarestfsspec/{test_filename}"
-
-    test_content = (
-        b"Hello, OnedataRESTFSSpec! This is a test file.\nSecond line of content.\n"
-    )
+    test_filename, test_file_path, test_content = _generate_test_file_info()
 
     try:
         # Verify we can list the test space
-        spaces = fs.ls("/")
-        assert (
-            "test_onedatarestfsspec" in spaces
-        ), f"test_onedatarestfsspec space not found in {spaces}"
-
-        # List initial contents of test space
-        initial_files = fs.ls("/test_onedatarestfsspec/")
-        print(f"Initial files in test space: {initial_files}")
+        assert "test_onedatarestfsspec" in fs.ls(
+            "/"
+        ), "test_onedatarestfsspec space not found"
+        print(f"Initial files in test space: {fs.ls('/test_onedatarestfsspec/')}")
 
         # Test file creation and writing
         print(f"Creating test file: {test_file_path}")
         with fs.open(test_file_path, "wb") as f:
             f.write(test_content)
 
-        # Verify file exists
+        # Verify file exists and check info
         assert fs.exists(
             test_file_path
         ), f"File {test_file_path} should exist after creation"
-
-        # Check file info
         file_info = fs.info(test_file_path)
         assert file_info["type"] == "file"
         assert file_info["size"] == len(test_content)
@@ -62,28 +61,22 @@ def test_file_operations_integration(onezone_ip, onezone_admin_token):
         # Test file reading
         print(f"Reading test file: {test_file_path}")
         with fs.open(test_file_path, "rb") as f:
-            read_content = f.read()
-
-        assert read_content == test_content, "Read content should match written content"
+            assert f.read() == test_content, "Read content should match written content"
 
         # Test cat_file method
-        cat_content = fs.cat_file(test_file_path)
         assert (
-            cat_content == test_content
+            fs.cat_file(test_file_path) == test_content
         ), "cat_file content should match written content"
 
         # Test partial read
-        partial_content = fs.cat_file(test_file_path, start=7, end=20)
-        expected_partial = test_content[7:20]
         assert (
-            partial_content == expected_partial
+            fs.cat_file(test_file_path, start=7, end=20) == test_content[7:20]
         ), "Partial read should match expected slice"
 
         # Verify file appears in directory listing
-        files_after_creation = fs.ls("/test_onedatarestfsspec/")
         assert any(
-            test_filename in f for f in files_after_creation
-        ), f"Test file should appear in directory listing: {files_after_creation}"
+            test_filename in f for f in fs.ls("/test_onedatarestfsspec/")
+        ), "Test file should appear in directory listing"
 
         print("All file operations completed successfully!")
 
@@ -100,7 +93,7 @@ def test_file_operations_integration(onezone_ip, onezone_admin_token):
                 ), f"File {test_file_path} should be removed"
                 print("Test file cleaned up successfully")
 
-        except Exception as cleanup_error:
+        except (FileNotFoundError, OSError, ValueError) as cleanup_error:
             print(
                 f"Warning: Failed to cleanup test file {test_file_path}: {cleanup_error}"
             )
@@ -169,7 +162,7 @@ def test_directory_operations_integration(onezone_ip, onezone_admin_token):
 
             print("Directory test cleanup completed successfully")
 
-        except Exception as cleanup_error:
+        except (FileNotFoundError, OSError, ValueError) as cleanup_error:
             print(
                 f"Warning: Failed to cleanup test directory {test_dir_path}: {cleanup_error}"
             )

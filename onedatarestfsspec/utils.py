@@ -69,8 +69,7 @@ def split_onedata_path(path: str) -> Tuple[str, Optional[str]]:
     if "/" in path_clean:
         space_name, file_path = path_clean.split("/", 1)
         return space_name, file_path
-    else:
-        return path_clean, None
+    return path_clean, None
 
 
 def join_onedata_path(space_name: str, file_path: Optional[str] = None) -> str:
@@ -91,13 +90,11 @@ def join_onedata_path(space_name: str, file_path: Optional[str] = None) -> str:
     if not space_name:
         if file_path:
             return f"/{file_path}"
-        else:
-            return "/"
+        return "/"
 
     if file_path:
         return f"/{space_name}/{file_path}"
-    else:
-        return f"/{space_name}"
+    return f"/{space_name}"
 
 
 def validate_onedata_path(path: str) -> bool:
@@ -115,7 +112,7 @@ def validate_onedata_path(path: str) -> bool:
     """
     try:
         normalized = normalize_onedata_path(path)
-        space_name, file_path = split_onedata_path(normalized)
+        space_name, _ = split_onedata_path(normalized)
 
         # Allow empty space name for root path
         if not space_name:
@@ -128,7 +125,7 @@ def validate_onedata_path(path: str) -> bool:
         # For paths like "/space/with/slash", the space_name would be "space"
         # and file_path would be "with/slash", which is valid
         return True
-    except Exception:
+    except (ValueError, TypeError):
         return False
 
 

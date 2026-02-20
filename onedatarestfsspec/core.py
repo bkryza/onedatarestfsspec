@@ -1,26 +1,21 @@
 """Core implementation of OnedataFileSystem for fsspec."""
 
-import io
 import logging
 import posixpath
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from fsspec import AbstractFileSystem
+from fsspec.registry import register_implementation
 from fsspec.spec import AbstractBufferedFile
 from fsspec.utils import infer_storage_options
 
 from onedatafilerestclient import OnedataFileRESTClient
-from onedatafilerestclient.errors import (
-    NoAvailableProviderForSpaceError,
-    OnedataError,
-    OnedataRESTError,
-)
-from onedatafilerestclient.file_attributes import FileAttrsJson
-from onedatafilerestclient.types import FileId, FilePath, SpaceSpecifier
+from onedatafilerestclient.errors import OnedataError
+from onedatafilerestclient.types import FileId
 
-from .config import get_onedata_config_from_env, merge_config, parse_onedata_url
-from .utils import normalize_onedata_path, split_onedata_path, validate_onedata_path
+from .config import get_onedata_config_from_env, merge_config
+from .utils import split_onedata_path
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +24,7 @@ class OnedataFile(AbstractBufferedFile):
     """File-like object for Onedata files."""
 
     def __init__(
-        self, fs, path, mode="rb", block_size=None, cache_type="readahead", **kwargs
+        self, fs, path, mode="rb", *, block_size=None, cache_type="readahead", **kwargs
     ):
         super().__init__(fs, path, mode, block_size, cache_type=cache_type, **kwargs)
         self.space_name, self.file_path = self._split_onedata_path(path)
@@ -38,7 +33,9 @@ class OnedataFile(AbstractBufferedFile):
         if self.mode == "rb":
             try:
                 self.size = fs._get_file_size(self.space_name, self.file_path)
-                self.file_id = fs._get_file_id(self.space_name, self.file_path)
+                self.file_id = fs._get_file_id(  # pylint: disable=protected-access
+                    self.space_name, self.file_path
+                )
             except OnedataError:
                 if "r" in self.mode:
                     raise
@@ -52,6 +49,7 @@ class OnedataFile(AbstractBufferedFile):
     def _fetch_range(self, start: int, end: int) -> bytes:
         """Fetch a range of bytes from the file."""
         if self.file_id is None:
+            # pylint: disable=protected-access
             self.file_id = self.fs._get_file_id(self.space_name, self.file_path)
 
         size = end - start
@@ -66,7 +64,9 @@ class OnedataFile(AbstractBufferedFile):
 
         if self.file_id is None:
             # Create the file if it doesn't exist
-            self.file_id = self.fs._create_file(self.space_name, self.file_path)
+            self.file_id = self.fs._create_file(  # pylint: disable=protected-access
+                self.space_name, self.file_path
+            )
 
         data = self.buffer.getvalue()
         self.fs.client.put_file_content(
@@ -90,7 +90,6 @@ class OnedataFile(AbstractBufferedFile):
 
     def discard(self) -> None:
         """Discard the file."""
-        pass
 
 
 class OnedataFileSystem(AbstractFileSystem):
@@ -101,6 +100,7 @@ class OnedataFileSystem(AbstractFileSystem):
 
     def __init__(
         self,
+        *,
         onezone_host: str = None,
         token: str = None,
         preferred_providers: Optional[List[str]] = None,
@@ -151,7 +151,8 @@ class OnedataFileSystem(AbstractFileSystem):
 
         if not self.onezone_host or not self.token:
             raise ValueError(
-                "Both onezone_host and token must be provided either as parameters or environment variables"
+                "Both onezone_host and token must be provided either as "
+                "parameters or environment variables"
             )
 
         # Extract hostname/IP from onezone_host if it includes protocol
@@ -226,8 +227,7 @@ class OnedataFileSystem(AbstractFileSystem):
                 return [
                     {"name": space, "type": "directory", "size": 0} for space in spaces
                 ]
-            else:
-                return spaces
+            return spaces
 
         try:
             result = self.client.list_children(
@@ -262,7 +262,7 @@ class OnedataFileSystem(AbstractFileSystem):
 
         except OnedataError as e:
             if "enoent" in str(e).lower():
-                raise FileNotFoundError(f"Path not found: {path}")
+                raise FileNotFoundError(f"Path not found: {path}") from e
             raise
 
     def info(self, path: str, **kwargs) -> Dict[str, Any]:
@@ -309,7 +309,7 @@ class OnedataFileSystem(AbstractFileSystem):
 
         except OnedataError as e:
             if "enoent" in str(e).lower():
-                raise FileNotFoundError(f"Path not found: {path}")
+                raise FileNotFoundError(f"Path not found: {path}") from e
             raise
 
     def cat_file(
@@ -352,15 +352,22 @@ class OnedataFileSystem(AbstractFileSystem):
                 return self.client.get_file_content(
                     space_name, file_path=file_path, offset=start, size=size
                 )
-            else:
-                return self.client.get_file_content(space_name, file_path=file_path)
+            return self.client.get_file_content(space_name, file_path=file_path)
 
         except OnedataError as e:
             if "enoent" in str(e).lower():
-                raise FileNotFoundError(f"File not found: {path}")
+                raise FileNotFoundError(f"File not found: {path}") from e
             raise
 
-    def put_file(self, lpath: str, rpath: str, callback=None, **kwargs) -> None:
+    def put_file(  # pylint: disable=arguments-differ
+        self,
+        lpath: str,
+        rpath: str,
+        callback=None,
+        *,
+        block_size=None,
+        **kwargs,  # pylint: disable=unused-argument
+    ) -> None:
         """Upload a local file to Onedata.
 
         Parameters
@@ -392,9 +399,17 @@ class OnedataFileSystem(AbstractFileSystem):
                 callback(len(data))
 
         except OnedataError as e:
-            raise IOError(f"Failed to upload file: {e}")
+            raise IOError(f"Failed to upload file: {e}") from e
 
-    def get_file(self, rpath: str, lpath: str, callback=None, **kwargs) -> None:
+    def get_file(  # pylint: disable=arguments-differ
+        self,
+        rpath: str,
+        lpath: str,
+        callback=None,
+        *,
+        block_size=None,
+        **kwargs,  # pylint: disable=unused-argument
+    ) -> None:
         """Download a file from Onedata to local filesystem.
 
         Parameters
@@ -445,7 +460,7 @@ class OnedataFileSystem(AbstractFileSystem):
             self.client.remove(space_name, file_path=file_path)
         except OnedataError as e:
             if "enoent" in str(e).lower():
-                raise FileNotFoundError(f"File not found: {path}")
+                raise FileNotFoundError(f"File not found: {path}") from e
             raise
 
     def makedirs(self, path: str, exist_ok: bool = False) -> None:
@@ -482,7 +497,7 @@ class OnedataFileSystem(AbstractFileSystem):
         """
         self.rm_file(path)
 
-    def exists(self, path: str) -> bool:
+    def exists(self, path: str, **kwargs) -> bool:
         """Check if a path exists.
 
         Parameters
@@ -555,7 +570,16 @@ class OnedataFileSystem(AbstractFileSystem):
         info = self.info(path)
         return info["size"]
 
-    def open(self, path: str, mode: str = "rb", **kwargs) -> OnedataFile:
+    def open(  # pylint: disable=arguments-differ
+        self,
+        path: str,
+        mode: str = "rb",
+        *,
+        block_size=None,  # pylint: disable=unused-argument
+        cache_type=None,  # pylint: disable=unused-argument
+        compression=None,  # pylint: disable=unused-argument
+        **kwargs,
+    ) -> OnedataFile:
         """Open a file for reading or writing.
 
         Parameters
@@ -572,11 +596,34 @@ class OnedataFileSystem(AbstractFileSystem):
         """
         return OnedataFile(self, path, mode, **kwargs)
 
+    def _rm(self, path: str) -> None:
+        """Remove a file or directory."""
+        self.rm_file(path)
+
+    def created(self, path: str) -> Optional[float]:
+        """Get file creation time (not supported)."""
+        return None
+
+    def modified(self, path: str) -> Optional[float]:
+        """Get file modification time."""
+        try:
+            info = self.info(path)
+            return info.get("mtime")
+        except FileNotFoundError:
+            return None
+
+    @property
+    def fsid(self) -> str:
+        """Get filesystem ID."""
+        return "onedata"
+
+    def sign(self, path: str, expiration: int = 3600, **kwargs) -> str:
+        """Sign a path (not implemented)."""
+        raise NotImplementedError("URL signing not supported")
+
 
 # Register with fsspec
 try:
-    from fsspec.registry import register_implementation
-
     register_implementation("onedata", OnedataFileSystem)
 except ImportError:
     pass  # fsspec not available

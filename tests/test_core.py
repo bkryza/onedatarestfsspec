@@ -1,10 +1,10 @@
 """Tests for OnedataFileSystem core functionality."""
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
-from onedatafilerestclient.errors import OnedataError, OnedataRESTError
+from onedatafilerestclient.errors import OnedataRESTError
 from onedatarestfsspec.core import OnedataFile, OnedataFileSystem
 
 
@@ -95,17 +95,21 @@ class TestOnedataFileSystem:
     def test_split_onedata_path(self, fs):
         """Test path splitting functionality."""
         # Test space root
-        space, path = fs._split_onedata_path("space1")
+        space, path = fs._split_onedata_path(  # pylint: disable=protected-access
+            "space1"
+        )
         assert space == "space1"
         assert path is None
 
         # Test file in space
-        space, path = fs._split_onedata_path("space1/dir/file.txt")
+        space, path = fs._split_onedata_path(  # pylint: disable=protected-access
+            "space1/dir/file.txt"
+        )
         assert space == "space1"
         assert path == "dir/file.txt"
 
         # Test root path
-        space, path = fs._split_onedata_path("/")
+        space, path = fs._split_onedata_path("/")  # pylint: disable=protected-access
         assert space == ""
         assert path is None
 
@@ -225,11 +229,15 @@ class TestOnedataFileSystem:
         test_file = tmp_path / "test.txt"
         test_file.write_bytes(b"test content")
 
-        fs._create_file = Mock(return_value="file_id_123")
+        fs._create_file = Mock(  # pylint: disable=protected-access
+            return_value="file_id_123"
+        )
 
         fs.put_file(str(test_file), "space1/uploaded.txt")
 
-        fs._create_file.assert_called_once_with("space1", "uploaded.txt")
+        fs._create_file.assert_called_once_with(  # pylint: disable=protected-access
+            "space1", "uploaded.txt"
+        )
         fs.client.put_file_content.assert_called_once_with(
             "space1", data=b"test content", file_id="file_id_123"
         )
@@ -297,7 +305,7 @@ class TestOnedataFile:
             file_obj = OnedataFile(fs, "space1/test.txt", "rb")
             file_obj.file_id = "file_id_123"
 
-            content = file_obj._fetch_range(10, 20)
+            content = file_obj._fetch_range(10, 20)  # pylint: disable=protected-access
 
             assert content == b"test content"  # Should return mock content
 
@@ -316,7 +324,7 @@ class TestOnedataFile:
             file_obj.buffer = mock_buffer
             file_obj.offset = 0
 
-            result = file_obj._upload_chunk()
+            result = file_obj._upload_chunk()  # pylint: disable=protected-access
 
             assert result is True
             assert file_obj.offset == 10

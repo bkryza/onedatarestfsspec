@@ -28,7 +28,10 @@ class TestParseOnedataUrl:
 
     def test_url_with_query_params(self):
         """Test parsing URL with query parameters."""
-        url = "onedata://token123@onezone.example.com/space1?verify_ssl=false&timeout=60&providers=provider1,provider2"
+        url = (
+            "onedata://token123@onezone.example.com/space1?"
+            "verify_ssl=false&timeout=60&providers=provider1,provider2"
+        )
         config = parse_onedata_url(url)
 
         assert config["onezone_host"] == "https://onezone.example.com"
@@ -191,7 +194,7 @@ class TestMergeConfig:
     def test_merge_empty_configs(self):
         """Test merging empty configurations."""
         config = merge_config({}, {}, {})
-        assert config == {}
+        assert not config
 
 
 if __name__ == "__main__":
