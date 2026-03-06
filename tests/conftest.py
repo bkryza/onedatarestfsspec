@@ -4,6 +4,7 @@
 import http.client as http_client
 import logging
 import os
+import random
 import time
 import uuid
 
@@ -157,3 +158,24 @@ def onezone_readonly_token(onezone_ip):
         verify=False,
     )
     return res.json()["token"]
+
+
+def _generate_test_file_info():
+    """Generate unique test file information."""
+    timestamp = int(time.time())
+    random_id = random.randint(1000, 9999)
+    filename = f"fsspec_test_{timestamp}_{random_id}.txt"
+    path = f"/test_onedatarestfsspec/{filename}"
+    content = (
+        b"Hello, OnedataRESTFSSpec! This is a test file.\nSecond line of content.\n"
+    )
+    return filename, path, content
+
+
+def _generate_test_dir_info():
+    """Generate unique test directory information."""
+    timestamp = int(time.time())
+    random_id = random.randint(1000, 9999)
+    dirname = f"fsspec_test_dir_{timestamp}_{random_id}"
+    path = f"/test_onedatarestfsspec/{dirname}"
+    return dirname, path

@@ -5,42 +5,22 @@ and OnedataFileSystem, providing comprehensive filesystem functionality testing.
 """
 
 import io
-import random
 import time
-import unittest
 
 import pytest
 
 from onedatarestfsspec.core import OnedataFileSystem
 
-
-def _generate_test_file_info():
-    """Generate unique test file information."""
-    timestamp = int(time.time())
-    random_id = random.randint(1000, 9999)
-    filename = f"fsspec_test_{timestamp}_{random_id}.txt"
-    path = f"/test_onedatarestfsspec/{filename}"
-    content = (
-        b"Hello, OnedataRESTFSSpec! This is a test file.\nSecond line of content.\n"
-    )
-    return filename, path, content
+from .conftest import _generate_test_dir_info, _generate_test_file_info
 
 
-def _generate_test_dir_info():
-    """Generate unique test directory information."""
-    timestamp = int(time.time())
-    random_id = random.randint(1000, 9999)
-    dirname = f"fsspec_test_dir_{timestamp}_{random_id}"
-    path = f"/test_onedatarestfsspec/{dirname}"
-    return dirname, path
-
-
-class TestOnedataFSSpec:
+class TestOnedataFSSpec:  # pylint: disable=too-many-public-methods
     """FSSpec-compatible test suite for OnedataFileSystem."""
 
     @pytest.fixture(autouse=True)
     def setup_filesystem(self, onezone_ip, onezone_admin_token):
         """Set up filesystem instance for each test."""
+        # pylint: disable=attribute-defined-outside-init
         self.fs = OnedataFileSystem(
             onezone_host=f"https://{onezone_ip}",
             token=onezone_admin_token,
@@ -58,14 +38,14 @@ class TestOnedataFSSpec:
             try:
                 if self.fs.exists(file_path):
                     self.fs.rm_file(file_path)
-            except Exception as e:
+            except (FileNotFoundError, OSError) as e:
                 print(f"Warning: Failed to cleanup test file {file_path}: {e}")
-        
+
         for dir_path in self._test_dirs_to_cleanup:
             try:
                 if self.fs.exists(dir_path):
                     self.fs.rmdir(dir_path)
-            except Exception as e:
+            except (FileNotFoundError, OSError) as e:
                 print(f"Warning: Failed to cleanup test directory {dir_path}: {e}")
 
     def _add_cleanup_file(self, path):
@@ -104,7 +84,7 @@ class TestOnedataFSSpec:
         assert isinstance(contents, str)
         # OnedataFileSystem only supports binary modes, so we need to encode/decode
         with self.fs.open(path, "rb") as f:
-            data = f.read().decode('utf-8')
+            data = f.read().decode("utf-8")
         assert data == contents, f"File {path} text content mismatch"
         assert isinstance(data, str)
 
@@ -122,7 +102,7 @@ class TestOnedataFSSpec:
     @pytest.mark.integration
     def test_exists(self):
         """Test file existence checking."""
-        filename, test_path, content = _generate_test_file_info()
+        _, test_path, content = _generate_test_file_info()
         self._add_cleanup_file(test_path)
 
         # File should not exist initially
@@ -141,7 +121,7 @@ class TestOnedataFSSpec:
     @pytest.mark.integration
     def test_isfile(self):
         """Test file type checking."""
-        filename, test_path, content = _generate_test_file_info()
+        _, test_path, content = _generate_test_file_info()
         self._add_cleanup_file(test_path)
 
         # Should not be a file initially
@@ -160,7 +140,7 @@ class TestOnedataFSSpec:
     @pytest.mark.integration
     def test_isdir(self):
         """Test directory type checking."""
-        dirname, test_dir_path = _generate_test_dir_info()
+        _, test_dir_path = _generate_test_dir_info()
         self._add_cleanup_dir(test_dir_path)
 
         # Should not be a directory initially
@@ -176,7 +156,7 @@ class TestOnedataFSSpec:
         self.assert_isdir("/test_onedatarestfsspec")
 
         # File should not be a directory
-        filename, test_path, content = _generate_test_file_info()
+        _, test_path, content = _generate_test_file_info()
         self._add_cleanup_file(test_path)
         with self.fs.open(test_path, "wb") as f:
             f.write(content)
@@ -186,19 +166,19 @@ class TestOnedataFSSpec:
     def test_getsize(self):
         """Test file size retrieval."""
         # Test file with minimal content (avoid empty files due to sync issues)
-        filename, test_path, content = _generate_test_file_info()
+        _, test_path, content = _generate_test_file_info()
         self._add_cleanup_file(test_path)
-        
+
         with self.fs.open(test_path, "wb") as f:
             f.write(content)
         time.sleep(0.1)  # Brief wait for file system synchronization
         assert self.fs.size(test_path) == len(content)
 
-        # Test single byte file  
-        filename, single_path, _ = _generate_test_file_info()
-        single_path = single_path.replace('.txt', '_single.txt')
+        # Test single byte file
+        _, single_path, _ = _generate_test_file_info()
+        single_path = single_path.replace(".txt", "_single.txt")
         self._add_cleanup_file(single_path)
-        
+
         with self.fs.open(single_path, "wb") as f:
             f.write(b"a")
         time.sleep(0.1)  # Brief wait for file system synchronization
@@ -206,10 +186,10 @@ class TestOnedataFSSpec:
 
         # Test large file
         large_content = b"x" * 1000
-        filename, large_path, _ = _generate_test_file_info()
-        large_path = large_path.replace('.txt', '_large.txt')
+        _, large_path, _ = _generate_test_file_info()
+        large_path = large_path.replace(".txt", "_large.txt")
         self._add_cleanup_file(large_path)
-        
+
         with self.fs.open(large_path, "wb") as f:
             f.write(large_content)
         time.sleep(0.1)  # Brief wait for file system synchronization
@@ -226,7 +206,7 @@ class TestOnedataFSSpec:
         filename1, path1, content = _generate_test_file_info()
         filename2, path2, content = _generate_test_file_info()
         dirname, dir_path = _generate_test_dir_info()
-        
+
         self._add_cleanup_file(path1)
         self._add_cleanup_file(path2)
         self._add_cleanup_dir(dir_path)
@@ -240,41 +220,41 @@ class TestOnedataFSSpec:
 
         # List directory
         files = self.fs.ls("/test_onedatarestfsspec")
-        
+
         # Check files are in listing
         filenames = [f.split("/")[-1] for f in files]
         assert filename1 in filenames
         assert filename2 in filenames
         assert dirname in filenames
 
-    @pytest.mark.integration  
+    @pytest.mark.integration
     def test_open_read_write(self):
         """Test file open, read, and write operations."""
-        filename, test_path, original_content = _generate_test_file_info()
+        _, test_path, original_content = _generate_test_file_info()
         self._add_cleanup_file(test_path)
 
         # Test binary write
         with self.fs.open(test_path, "wb") as f:
-            assert hasattr(f, 'write')
+            assert hasattr(f, "write")
             assert not f.closed
             f.write(original_content)
         assert f.closed
-        
+
         # Test binary read
         with self.fs.open(test_path, "rb") as f:
-            assert hasattr(f, 'read')
+            assert hasattr(f, "read")
             assert not f.closed
             data = f.read()
         assert f.closed
         assert data == original_content
 
-        # Test overwrite with different content - need to remove first 
+        # Test overwrite with different content - need to remove first
         # since OnedataFileSystem doesn't support overwriting existing files
         self.fs.rm_file(test_path)
         new_content = b"Goodbye, World - new content"
         with self.fs.open(test_path, "wb") as f:
             f.write(new_content)
-        
+
         # Verify overwrite worked
         with self.fs.open(test_path, "rb") as f:
             data = f.read()
@@ -283,7 +263,7 @@ class TestOnedataFSSpec:
     @pytest.mark.integration
     def test_open_modes(self):
         """Test different file opening modes."""
-        filename, test_path, content = _generate_test_file_info()
+        _, test_path, content = _generate_test_file_info()
         self._add_cleanup_file(test_path)
 
         # Test binary write mode
@@ -297,26 +277,26 @@ class TestOnedataFSSpec:
             data = f.read()
             assert data == content
 
-        # Test append mode (if supported) - OnedataFileSystem has issues with append to existing files
+        # Test append mode (if supported) - OnedataFileSystem has issues with append
         # So we'll test this with a separate file
-        filename2, append_test_path, _ = _generate_test_file_info()
-        append_test_path = append_test_path.replace('.txt', '_append.txt')
+        _, append_test_path, _ = _generate_test_file_info()
+        append_test_path = append_test_path.replace(".txt", "_append.txt")
         self._add_cleanup_file(append_test_path)
-        
+
         try:
             # Create initial content
             with self.fs.open(append_test_path, "wb") as f:
                 f.write(content)
-            
+
             # Remove and recreate for append test since OnedataFileSystem has limitations
             self.fs.rm_file(append_test_path)
-            
+
             # Test append mode with fresh file
             additional_content = b"\nAppended content"
             with self.fs.open(append_test_path, "ab") as f:
                 assert isinstance(f, io.IOBase)
                 f.write(content + additional_content)
-            
+
             # Verify append worked
             with self.fs.open(append_test_path, "rb") as f:
                 data = f.read()
@@ -328,7 +308,7 @@ class TestOnedataFSSpec:
     @pytest.mark.integration
     def test_makedir_makedirs(self):
         """Test directory creation."""
-        dirname, test_dir = _generate_test_dir_info()
+        _, test_dir = _generate_test_dir_info()
         self._add_cleanup_dir(test_dir)
 
         # Directory should not exist
@@ -350,24 +330,24 @@ class TestOnedataFSSpec:
     @pytest.mark.integration
     def test_remove_file(self):
         """Test file removal."""
-        filename, test_path, content = _generate_test_file_info()
-        
+        _, test_path, content = _generate_test_file_info()
+
         # Create file
         with self.fs.open(test_path, "wb") as f:
             f.write(content)
-        
+
         self.assert_exists(test_path)
 
         # Remove file
         self.fs.rm_file(test_path)
-        
+
         self.assert_not_exists(test_path)
 
     @pytest.mark.integration
     def test_remove_directory(self):
         """Test directory removal."""
-        dirname, test_dir = _generate_test_dir_info()
-        
+        _, test_dir = _generate_test_dir_info()
+
         # Create directory
         self.fs.makedirs(test_dir)
         self.assert_exists(test_dir)
@@ -379,7 +359,7 @@ class TestOnedataFSSpec:
     @pytest.mark.integration
     def test_cat_file(self):
         """Test file content reading with cat_file."""
-        filename, test_path, content = _generate_test_file_info()
+        _, test_path, content = _generate_test_file_info()
         self._add_cleanup_file(test_path)
 
         # Create file
@@ -397,7 +377,7 @@ class TestOnedataFSSpec:
     @pytest.mark.integration
     def test_info(self):
         """Test file info retrieval."""
-        filename, test_path, content = _generate_test_file_info()
+        _, test_path, content = _generate_test_file_info()
         self._add_cleanup_file(test_path)
 
         # Create file
@@ -445,7 +425,7 @@ class TestOnedataFSSpec:
     @pytest.mark.integration
     def test_directory_operations_integration(self):
         """Test comprehensive directory operations workflow."""
-        dirname, test_dir = _generate_test_dir_info()
+        _, test_dir = _generate_test_dir_info()
         self._add_cleanup_dir(test_dir)
 
         # Create directory
@@ -457,7 +437,7 @@ class TestOnedataFSSpec:
         filename, _, content = _generate_test_file_info()
         file_in_dir = f"{test_dir}/{filename}"
         self._add_cleanup_file(file_in_dir)
-        
+
         with self.fs.open(file_in_dir, "wb") as f:
             f.write(content)
 

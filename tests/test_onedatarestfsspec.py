@@ -7,17 +7,7 @@ import pytest
 
 from onedatarestfsspec.core import OnedataFileSystem
 
-
-def _generate_test_file_info():
-    """Generate unique test file information."""
-    timestamp = int(time.time())
-    random_id = random.randint(1000, 9999)
-    filename = f"fsspec_test_{timestamp}_{random_id}.txt"
-    path = f"/test_onedatarestfsspec/{filename}"
-    content = (
-        b"Hello, OnedataRESTFSSpec! This is a test file.\nSecond line of content.\n"
-    )
-    return filename, path, content
+from .conftest import _generate_test_file_info
 
 
 @pytest.mark.integration
