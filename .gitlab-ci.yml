@@ -1,0 +1,86 @@
+# GitLab CI/CD Pipeline for onedatarestfsspec library
+
+stages:
+  - test
+  - build
+
+variables:
+  # Use the latest Python 3.12 image
+  PYTHON_VERSION: "3.12"
+
+# Test stage - run unit tests
+test:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  before_script:
+    # Install uv package manager
+    - pip install uv
+    # Sync dependencies using uv
+    - uv sync
+  script:
+    # Run pytest with coverage reporting
+    - uv run pytest --verbose --tb=short --cov=onedatarestfsspec --cov-report=term-missing --cov-report=xml tests/test_core.py tests/test_config.py
+  artifacts:
+    paths:
+      - coverage.xml
+    expire_in: 1 week
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# Lint stage - code quality checks
+lint:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - pip install uv
+    - uv sync
+    # Install linting tools
+    - uv add --dev ruff black mypy
+  script:
+    # Run code formatting check
+    - uv run black --check --diff onedatarestfsspec/ tests/
+    # Run linting
+    - uv run ruff check onedatarestfsspec/ tests/
+    # Run type checking
+    - uv run mypy onedatarestfsspec/ --ignore-missing-imports
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# Build stage - verify package can be built
+build:
+  stage: build
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - pip install uv
+    - uv sync
+  script:
+    # Build the package
+    - uv build
+    # Verify the built package
+    - ls -la dist/
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# Cache configuration
+default:
+  cache:
+    key: "${CI_JOB_NAME}-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - .venv/
+    policy: pull-push
+
+# Job templates for reusability
+.python_setup: &python_setup
+  before_script:
+    - python --version
+    - pip install uv
+    - uv sync
