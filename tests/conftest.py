@@ -55,8 +55,10 @@ def patched_create_connection(address, *args, **kwargs):
 def pytest_configure(config):
     """Configure pytest to conditionally patch connection for integration tests."""
     # Check if we're running integration tests
-    markexpr = config.getoption('-m', default='')
-    if 'not integration' not in markexpr and (not markexpr or 'integration' in markexpr):
+    markexpr = config.getoption("-m", default="")
+    if "not integration" not in markexpr and (
+        not markexpr or "integration" in markexpr
+    ):
         connection.create_connection = patched_create_connection
 
 
