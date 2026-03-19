@@ -51,7 +51,13 @@ def patched_create_connection(address, *args, **kwargs):
     return _original_create_connection((hostname, port), *args, **kwargs)
 
 
-connection.create_connection = patched_create_connection
+# Only patch connection for integration tests
+def pytest_configure(config):
+    """Configure pytest to conditionally patch connection for integration tests."""
+    # Check if we're running integration tests
+    markexpr = config.getoption('-m', default='')
+    if 'not integration' not in markexpr and (not markexpr or 'integration' in markexpr):
+        connection.create_connection = patched_create_connection
 
 
 @pytest.fixture(scope=FIXTURE_SCOPE)
@@ -68,6 +74,7 @@ def uuid_str():
 
 
 @pytest.fixture(scope=FIXTURE_SCOPE)
+@pytest.mark.integration
 def onezone_ip():
     """Get Onezone IP from environment variable."""
     ozip = os.getenv("DEV_ONEZONE_0", "onezone.example.com")
@@ -76,6 +83,7 @@ def onezone_ip():
 
 
 @pytest.fixture(scope=FIXTURE_SCOPE)
+@pytest.mark.integration
 def oneprovider_krakow_ip():
     """Get Oneprovider 'krakow' IP from environment variable."""
     opip = os.getenv("DEV_ONEPROVIDER_KRAKOW_0", "krakow.example.com")
@@ -83,6 +91,7 @@ def oneprovider_krakow_ip():
 
 
 @pytest.fixture(scope=FIXTURE_SCOPE)
+@pytest.mark.integration
 def oneprovider_paris_ip():
     """Get Oneprovider 'paris' IP from environment variable."""
     opip = os.getenv("DEV_ONEPROVIDER_PARIS_0", "paris.example.com")
@@ -90,6 +99,7 @@ def oneprovider_paris_ip():
 
 
 @pytest.fixture(scope=FIXTURE_SCOPE)
+@pytest.mark.integration
 def onezone_admin_token(onezone_ip):
     """Generate a new client token."""
     tokens_endpoint = f"https://{onezone_ip}/api/v3/onezone/user/client_tokens"
@@ -103,7 +113,8 @@ def onezone_admin_token(onezone_ip):
     return res.json()["token"]
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
+@pytest.mark.integration
 def wait_for_support_sync(
     onezone_ip, oneprovider_krakow_ip, oneprovider_paris_ip, onezone_admin_token
 ):
@@ -139,6 +150,7 @@ def wait_for_support_sync(
 
 
 @pytest.fixture(scope=FIXTURE_SCOPE)
+@pytest.mark.integration
 def onezone_readonly_token(onezone_ip):
     """Generate new readonly only client token."""
     temporary_token_path = "api/v3/onezone/user/tokens/temporary"
