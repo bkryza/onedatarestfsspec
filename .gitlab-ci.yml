@@ -16,7 +16,7 @@ test:
     # Install uv package manager
     - pip install uv
     # Sync dependencies using uv
-    - uv sync
+    - uv sync --extra dev
   script:
     # Run pytest with coverage reporting
     - uv run pytest --verbose --tb=short --cov=onedatarestfsspec --cov-report=term-missing --cov-report=xml tests/test_core.py tests/test_config.py
@@ -35,7 +35,7 @@ lint:
   image: python:${PYTHON_VERSION}
   before_script:
     - pip install uv
-    - uv sync
+    - uv sync --extra dev
     # Install linting tools
     - uv add --dev ruff black mypy
   script:
@@ -56,7 +56,7 @@ build:
   image: python:${PYTHON_VERSION}
   before_script:
     - pip install uv
-    - uv sync
+    - uv sync --extra dev
   script:
     # Build the package
     - uv build
@@ -83,4 +83,4 @@ default:
   before_script:
     - python --version
     - pip install uv
-    - uv sync
+    - uv sync --extra dev
