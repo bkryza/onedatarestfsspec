@@ -42,11 +42,11 @@ def patched_create_connection(address, *args, **kwargs):
     hostname = host
 
     if host == "dev-onezone-0.default.svc.cluster.local":
-        hostname = os.getenv("DEV_ONEZONE_0")
+        hostname = os.getenv("DEV_ONEZONE_0", "")
     elif host == "dev-oneprovider-krakow.default.svc.cluster.local":
-        hostname = os.getenv("DEV_ONEPROVIDER_KRAKOW_0")
+        hostname = os.getenv("DEV_ONEPROVIDER_KRAKOW_0", "")
     elif host == "dev-oneprovider-paris.default.svc.cluster.local":
-        hostname = os.getenv("DEV_ONEPROVIDER_PARIS_0")
+        hostname = os.getenv("DEV_ONEPROVIDER_PARIS_0", "")
 
     return _original_create_connection((hostname, port), *args, **kwargs)
 
@@ -57,7 +57,7 @@ connection.create_connection = patched_create_connection
 @pytest.fixture(scope=FIXTURE_SCOPE)
 def git_version():
     """Get version based on Git commit."""
-    gv = os.getenv("GIT_VERSION")
+    gv = os.getenv("GIT_VERSION", "")
     yield gv
 
 
@@ -70,7 +70,7 @@ def uuid_str():
 @pytest.fixture(scope=FIXTURE_SCOPE)
 def onezone_ip():
     """Get Onezone IP from environment variable."""
-    ozip = os.getenv("DEV_ONEZONE_0")
+    ozip = os.getenv("DEV_ONEZONE_0", "")
     os.environ["ONEZONE_IP"] = ozip
     yield ozip
 
@@ -78,14 +78,14 @@ def onezone_ip():
 @pytest.fixture(scope=FIXTURE_SCOPE)
 def oneprovider_krakow_ip():
     """Get Oneprovider 'krakow' IP from environment variable."""
-    opip = os.getenv("DEV_ONEPROVIDER_KRAKOW_0")
+    opip = os.getenv("DEV_ONEPROVIDER_KRAKOW_0", "")
     yield opip
 
 
 @pytest.fixture(scope=FIXTURE_SCOPE)
 def oneprovider_paris_ip():
     """Get Oneprovider 'paris' IP from environment variable."""
-    opip = os.getenv("DEV_ONEPROVIDER_PARIS_0")
+    opip = os.getenv("DEV_ONEPROVIDER_PARIS_0", "")
     yield opip
 
 

@@ -18,8 +18,8 @@ test:
     # Sync dependencies using uv
     - uv sync --extra dev
   script:
-    # Run pytest with coverage reporting
-    - uv run pytest --verbose --tb=short --cov=onedatarestfsspec --cov-report=term-missing --cov-report=xml tests/test_core.py tests/test_config.py
+    # Run pytest unit tests with coverage reporting
+    - uv run pytest --verbose --tb=short --cov=onedatarestfsspec --cov-report=term-missing --cov-report=xml -m "not integration"
   artifacts:
     paths:
       - coverage.xml
