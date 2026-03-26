@@ -39,8 +39,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/onedata/onedatafsspec"
-Repository = "https://github.com/onedata/onedatafsspec"
+Homepage = "https://github.com/onedata/onedatarestfsspec"
+Repository = "https://github.com/onedata/onedatarestfsspec"
 
 [project.entry-points."fsspec.specs"]
 onedata = "onedatarestfsspec.core:OnedataFileSystem"
@@ -49,7 +49,7 @@ onedata = "onedatarestfsspec.core:OnedataFileSystem"
 include = ["onedatarestfsspec*"]
 
 [tool.setuptools.package-data]
-onedatafsspec = ["*.txt", "*.md"]
+onedatarestfsspec = ["*.txt", "*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
