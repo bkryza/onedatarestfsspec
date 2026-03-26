@@ -1,6 +1,6 @@
-# OnedataFSSpec
+# OnedataRESTFSSpec
 
-OnedataFSSpec is an fsspec filesystem implementation for Onedata, providing a unified interface for accessing Onedata spaces and files using the familiar fsspec API.
+OnedataRESTFSSpec is an fsspec filesystem implementation for Onedata, providing a unified interface for accessing Onedata spaces and files using the familiar fsspec API.
 
 ## Features
 
@@ -18,7 +18,7 @@ OnedataFSSpec is an fsspec filesystem implementation for Onedata, providing a un
 Install from the local directory:
 
 ```bash
-pip install -e ./onedatafsspec
+pip install -e ./onedatarestfsspec
 ```
 
 ## Requirements
@@ -51,12 +51,12 @@ files = fs.ls('/your-space/')
 print("Files in space:", files)
 
 # Read a file
-with fs.open('/your-space/path/to/file.txt', 'r') as f:
+with fs.open('/your-space/path/to/file.txt', 'rb') as f:
     content = f.read()
 
 # Write a file
-with fs.open('/your-space/path/to/newfile.txt', 'w') as f:
-    f.write('Hello, Onedata!')
+with fs.open('/your-space/path/to/newfile.txt', 'wb') as f:
+    f.write(b'Hello, Onedata!')
 
 # Get file info
 info = fs.info('/your-space/path/to/file.txt')
@@ -139,7 +139,7 @@ for file_info in files:
 
 ## Path Format
 
-Paths in OnedataFSSpec follow the format: `/space-name/path/within/space`
+Paths in OnedataRESTFSSpec follow the format: `/space-name/path/within/space`
 
 - Root path `/` lists all available spaces
 - Space path `/space-name` refers to the root of a specific space
@@ -155,7 +155,7 @@ Configuration is resolved in the following order (highest to lowest priority):
 
 ## Error Handling
 
-OnedataFSSpec translates Onedata REST API errors to standard Python exceptions:
+OnedataRESTFSSpec translates Onedata REST API errors to standard Python exceptions:
 
 - `FileNotFoundError` for missing files/directories
 - `IOError` for general I/O errors
@@ -176,13 +176,13 @@ To set up for development:
 ```bash
 # Install dependencies
 pip install -e ./onedatafilerestclient
-pip install -e ./onedatafsspec[test]
+pip install -e ./onedatarestfsspec[test]
 
 # Run tests
-pytest onedatafsspec/tests/
+pytest onedatarestfsspec/tests/
 
 # Run with coverage
-pytest --cov=onedatafsspec onedatafsspec/tests/
+pytest --cov=onedatarestfsspec onedatarestfsspec/tests/
 ```
 
 ## License
