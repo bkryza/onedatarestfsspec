@@ -2,7 +2,7 @@
 
 import logging
 import posixpath
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from fsspec import AbstractFileSystem  # type: ignore[import-untyped]
@@ -372,76 +372,6 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
             if "enoent" in str(e).lower():
                 raise FileNotFoundError(f"File not found: {path}") from e
             raise
-
-    def put_file(  # pylint: disable=arguments-differ
-        self,
-        lpath: str,
-        rpath: str,
-        callback: Optional[Callable[[int], None]] = None,
-        *,
-        block_size: Optional[int] = None,  # pylint: disable=unused-argument
-        **kwargs: Any,  # pylint: disable=unused-argument
-    ) -> None:
-        """Upload a local file to Onedata.
-
-        Parameters
-        ----------
-        lpath : str
-            Local file path
-        rpath : str
-            Remote file path
-        callback : callable, optional
-            Progress callback function
-        """
-        rpath = self._strip_protocol(rpath)
-        space_name, file_path = self._split_onedata_path(rpath)
-
-        if not space_name or not file_path:
-            raise ValueError(f"Invalid remote path: {rpath}")
-
-        with open(lpath, "rb") as f:
-            data = f.read()
-
-        try:
-            # Create the file first
-            file_id = self._create_file(space_name, file_path)
-
-            # Upload the content
-            self.client.put_file_content(space_name, data=data, file_id=file_id)
-
-            if callback:
-                callback(len(data))
-
-        except OnedataError as e:
-            raise IOError(f"Failed to upload file: {e}") from e
-
-    def get_file(  # pylint: disable=arguments-differ
-        self,
-        rpath: str,
-        lpath: str,
-        callback: Optional[Callable[[int], None]] = None,
-        *,
-        block_size: Optional[int] = None,  # pylint: disable=unused-argument
-        **kwargs: Any,  # pylint: disable=unused-argument
-    ) -> None:
-        """Download a file from Onedata to local filesystem.
-
-        Parameters
-        ----------
-        rpath : str
-            Remote file path
-        lpath : str
-            Local file path
-        callback : callable, optional
-            Progress callback function
-        """
-        data = self.cat_file(rpath)
-
-        with open(lpath, "wb") as f:
-            f.write(data)
-
-        if callback:
-            callback(len(data))
 
     def cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         """Copy a file within Onedata."""

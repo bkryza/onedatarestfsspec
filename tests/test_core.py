@@ -223,33 +223,6 @@ class TestOnedataFileSystem:
         with pytest.raises(FileNotFoundError):
             fs.rm_file("space1/nonexistent.txt")
 
-    def test_put_file(self, fs, tmp_path):
-        """Test uploading file."""
-        # Create a test file
-        test_file = tmp_path / "test.txt"
-        test_file.write_bytes(b"test content")
-
-        fs._create_file = Mock(  # pylint: disable=protected-access
-            return_value="file_id_123"
-        )
-
-        fs.put_file(str(test_file), "space1/uploaded.txt")
-
-        fs._create_file.assert_called_once_with(  # pylint: disable=protected-access
-            "space1", "uploaded.txt"
-        )
-        fs.client.put_file_content.assert_called_once_with(
-            "space1", data=b"test content", file_id="file_id_123"
-        )
-
-    def test_get_file(self, fs, tmp_path):
-        """Test downloading file."""
-        output_file = tmp_path / "downloaded.txt"
-
-        fs.get_file("space1/test.txt", str(output_file))
-
-        assert output_file.read_bytes() == b"test content"
-
     def test_cp_file(self, fs):
         """Test copying file within Onedata."""
         with patch.object(fs, "_create_file", return_value="file_id_456"):

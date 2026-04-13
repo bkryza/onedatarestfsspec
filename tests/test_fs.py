@@ -5,6 +5,8 @@ and OnedataFileSystem, providing comprehensive filesystem functionality testing.
 """
 
 import io
+import os
+import tempfile
 import time
 
 import pytest
@@ -453,6 +455,108 @@ class TestOnedataFSSpec:  # pylint: disable=too-many-public-methods
         # Read file content
         data = self.fs.cat_file(file_in_dir)
         assert data == content
+
+    @pytest.mark.integration
+    def test_put_file(self):
+        """Test uploading a local file to Onedata using put_file."""
+        _, rpath, content = _generate_test_file_info()
+        self._add_cleanup_file(rpath)
+
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(content)
+            lpath = tmp.name
+
+        try:
+            # Upload local file to remote
+            self.fs.put_file(lpath, rpath)
+
+            # Verify file exists at remote path
+            self.assert_exists(rpath)
+            self.assert_isfile(rpath)
+
+            # Verify content matches
+            self.assert_bytes(rpath, content)
+
+            # Verify size matches
+            assert self.fs.size(rpath) == len(content)
+        finally:
+            os.unlink(lpath)
+
+    @pytest.mark.integration
+    def test_put_file_into_subdirectory(self):
+        """Test uploading a local file into a subdirectory using put_file."""
+        _, test_dir = _generate_test_dir_info()
+        _, _, content = _generate_test_file_info()
+        filename = "uploaded_file.txt"
+        rpath = f"{test_dir}/{filename}"
+        self._add_cleanup_file(rpath)
+        self._add_cleanup_dir(test_dir)
+
+        self.fs.makedirs(test_dir)
+
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(content)
+            lpath = tmp.name
+
+        try:
+            self.fs.put_file(lpath, rpath)
+
+            self.assert_exists(rpath)
+            self.assert_isfile(rpath)
+            self.assert_bytes(rpath, content)
+        finally:
+            os.unlink(lpath)
+
+    @pytest.mark.integration
+    def test_get_file(self):
+        """Test downloading a remote Onedata file to local filesystem using get_file."""
+        _, rpath, content = _generate_test_file_info()
+        self._add_cleanup_file(rpath)
+
+        # Create the remote file
+        with self.fs.open(rpath, "wb") as f:
+            f.write(content)
+
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            lpath = tmp.name
+
+        try:
+            self.fs.get_file(rpath, lpath)
+
+            with open(lpath, "rb") as f:
+                downloaded = f.read()
+
+            assert downloaded == content
+        finally:
+            os.unlink(lpath)
+
+    @pytest.mark.integration
+    def test_get_file_from_subdirectory(self):
+        """Test downloading a file that lives inside a subdirectory."""
+        _, test_dir = _generate_test_dir_info()
+        _, _, content = _generate_test_file_info()
+        filename = "nested_file.txt"
+        rpath = f"{test_dir}/{filename}"
+        self._add_cleanup_file(rpath)
+        self._add_cleanup_dir(test_dir)
+
+        self.fs.makedirs(test_dir)
+
+        with self.fs.open(rpath, "wb") as f:
+            f.write(content)
+
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            lpath = tmp.name
+
+        try:
+            self.fs.get_file(rpath, lpath)
+
+            with open(lpath, "rb") as f:
+                downloaded = f.read()
+
+            assert downloaded == content
+        finally:
+            os.unlink(lpath)
 
     @pytest.mark.integration
     def test_error_conditions(self):
