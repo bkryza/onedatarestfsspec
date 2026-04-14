@@ -78,8 +78,8 @@ class OnedataFile(AbstractBufferedFile):  # type: ignore[misc]
             space_id,
             str(self.file_id),
             provider_id,
-            len(result),
-            time.monotonic() - t0,
+            byte_count=len(result),
+            latency_s=time.monotonic() - t0,
         )
         return result
 
@@ -109,8 +109,8 @@ class OnedataFile(AbstractBufferedFile):  # type: ignore[misc]
             space_id,
             str(self.file_id),
             provider_id,
-            len(data),
-            time.monotonic() - t0,
+            byte_count=len(data),
+            latency_s=time.monotonic() - t0,
         )
 
         if self.fs.auto_mkdir and self.path.count("/") > 1:
@@ -132,7 +132,7 @@ class OnedataFile(AbstractBufferedFile):  # type: ignore[misc]
         """Discard the file."""
 
 
-class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
+class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]  # pylint: disable=too-many-instance-attributes
     """fsspec filesystem implementation for Onedata."""
 
     protocol = "onedata"
@@ -188,19 +188,9 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
         """
         super().__init__(**kwargs)
 
-        # Get configuration from environment
-        env_config = get_onedata_config_from_env()
-
-        # Merge with explicitly provided config
-        explicit_config = {
-            "onezone_host": onezone_host,
-            "token": token,
-            "preferred_providers": preferred_providers,
-            "verify_ssl": verify_ssl,
-            "timeout": timeout,
-        }
-
-        config = merge_config({}, env_config, explicit_config)
+        config = self._resolve_connection_config(
+            onezone_host, token, preferred_providers, verify_ssl, timeout
+        )
 
         self.onezone_host = config.get("onezone_host")
         self.token = config.get("token")
@@ -215,14 +205,8 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
                 "parameters or environment variables"
             )
 
-        # Extract hostname/IP from onezone_host if it includes protocol
-        onezone_host_for_client = self.onezone_host
-        if self.onezone_host.startswith(("http://", "https://")):
-            parsed = urlparse(self.onezone_host)
-            onezone_host_for_client = parsed.hostname or parsed.netloc
-
         self.client = OnedataFileRESTClient(
-            onezone_host=onezone_host_for_client,
+            onezone_host=self._extract_hostname(self.onezone_host),
             token=self.token,
             preferred_providers=self.preferred_providers,
             verify_ssl=self.verify_ssl,
@@ -230,11 +214,9 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
         )
 
         # Metrics — honour both the kwarg and the env-var override
-        _metrics_enabled = metrics_enabled or (
-            os.environ.get("ONEDATA_METRICS_ENABLED", "").lower() == "true"
-        )
         self.metrics = OnedataMetrics(
-            enabled=_metrics_enabled,
+            enabled=metrics_enabled
+            or (os.environ.get("ONEDATA_METRICS_ENABLED", "").lower() == "true"),
             endpoint=otlp_endpoint,
             protocol=otlp_protocol,
             export_interval_ms=otlp_export_interval_ms,
@@ -242,6 +224,33 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
 
         # Cache for space name → space ID (file ID of the space root directory)
         self._space_id_cache: Dict[str, str] = {}
+
+    @staticmethod
+    def _resolve_connection_config(
+        onezone_host: Optional[str],
+        token: Optional[str],
+        preferred_providers: Optional[List[str]],
+        verify_ssl: bool,
+        timeout: Any,
+    ) -> Dict[str, Any]:
+        """Merge env-var defaults with explicitly provided constructor kwargs."""
+        env_config = get_onedata_config_from_env()
+        explicit_config = {
+            "onezone_host": onezone_host,
+            "token": token,
+            "preferred_providers": preferred_providers,
+            "verify_ssl": verify_ssl,
+            "timeout": timeout,
+        }
+        return merge_config({}, env_config, explicit_config)
+
+    @staticmethod
+    def _extract_hostname(host: str) -> str:
+        """Return the bare hostname/IP from *host*, stripping any URL scheme."""
+        if host.startswith(("http://", "https://")):
+            parsed = urlparse(host)
+            return parsed.hostname or parsed.netloc
+        return host
 
     @classmethod
     def _strip_protocol(cls, path: str) -> str:
@@ -287,6 +296,26 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
             return providers[0].id if providers else ""
         except Exception:  # pylint: disable=broad-except
             return ""
+
+    def _resolve_metric_labels(
+        self, space_name: str, file_path: Optional[str]
+    ) -> Tuple[str, str, str]:
+        """Return ``(space_id, file_id, provider_id)`` for metric attributes.
+
+        Each value falls back to an empty string when the corresponding lookup
+        fails, so that a resolution error never breaks the actual I/O operation.
+        """
+        space_id = ""
+        file_id = ""
+        try:
+            space_id = self._get_space_id(space_name)
+        except Exception:  # pylint: disable=broad-except
+            pass
+        try:
+            file_id = self._get_file_id(space_name, file_path)
+        except Exception:  # pylint: disable=broad-except
+            pass
+        return space_id, file_id, self._get_provider_id(space_name)
 
     def _get_file_size(self, space_name: str, file_path: Optional[str] = None) -> int:
         """Get file size for a given space and path."""
@@ -447,21 +476,11 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
         if not space_name or not file_path:
             raise FileNotFoundError(f"Invalid path: {path}")
 
-        # Resolve metric labels when monitoring is active.
-        # The extra round-trips are only incurred when metrics are enabled.
-        space_id: str = ""
-        file_id: str = ""
-        provider_id: str = ""
-        if self.metrics.enabled:
-            try:
-                space_id = self._get_space_id(space_name)
-            except Exception:  # pylint: disable=broad-except
-                pass
-            try:
-                file_id = self._get_file_id(space_name, file_path)
-            except Exception:  # pylint: disable=broad-except
-                pass
-            provider_id = self._get_provider_id(space_name)
+        metric_labels = (
+            self._resolve_metric_labels(space_name, file_path)
+            if self.metrics.enabled
+            else ("", "", "")
+        )
 
         try:
             t0 = time.monotonic()
@@ -479,11 +498,9 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
 
             result = bytes(content) if content is not None else b""
             self.metrics.record_read(
-                space_id,
-                file_id,
-                provider_id,
-                len(result),
-                time.monotonic() - t0,
+                *metric_labels,
+                byte_count=len(result),
+                latency_s=time.monotonic() - t0,
             )
             return result
 

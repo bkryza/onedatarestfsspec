@@ -2,9 +2,21 @@
 
 import logging
 import os
-from typing import Any, Optional
+from typing import Any, Dict, NamedTuple, Optional
 
 logger = logging.getLogger(__name__)
+
+
+class _Instruments(NamedTuple):
+    """Container for all OpenTelemetry meter instruments."""
+
+    access_total: Any
+    read_bytes: Any
+    written_bytes: Any
+    read_duration: Any
+    write_duration: Any
+    throughput: Any
+
 
 try:
     from opentelemetry.sdk.metrics import MeterProvider
@@ -27,7 +39,7 @@ def _build_exporter(endpoint: Optional[str], protocol: str) -> Any:
     protocol : str
         ``"grpc"`` or any ``"http/*"`` variant (default ``"http/protobuf"``).
     """
-    kwargs: dict = {}
+    kwargs: Dict[str, Any] = {}
     if endpoint:
         kwargs["endpoint"] = endpoint
 
@@ -46,7 +58,7 @@ def _build_exporter(endpoint: Optional[str], protocol: str) -> Any:
     else:  # http/protobuf (default) or http/json
         try:
             # pylint: disable=import-outside-toplevel
-            from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
+            from opentelemetry.exporter.otlp.proto.http.metric_exporter import (  # type: ignore
                 OTLPMetricExporter,
             )
         except ImportError as exc:
@@ -124,38 +136,40 @@ class OnedataMetrics:
                 "onedatarestfsspec",
                 schema_url="https://opentelemetry.io/schemas/1.24.0",
             )
-            self._access_total = meter.create_counter(
-                "onedata_file_access_total",
-                unit="1",
-                description=(
-                    "Total number of file access operations. "
-                    "The 'operation' attribute is either 'read' or 'write'."
+            self._instruments = _Instruments(
+                access_total=meter.create_counter(
+                    "onedata_file_access_total",
+                    unit="1",
+                    description=(
+                        "Total number of file access operations. "
+                        "The 'operation' attribute is either 'read' or 'write'."
+                    ),
                 ),
-            )
-            self._read_bytes = meter.create_counter(
-                "onedata_read_bytes",
-                unit="By",
-                description="Total bytes read from Onedata",
-            )
-            self._written_bytes = meter.create_counter(
-                "onedata_written_bytes",
-                unit="By",
-                description="Total bytes written to Onedata",
-            )
-            self._read_duration = meter.create_histogram(
-                "onedata_read_duration",
-                unit="s",
-                description="Latency of read operations in seconds",
-            )
-            self._write_duration = meter.create_histogram(
-                "onedata_write_duration",
-                unit="s",
-                description="Latency of write operations in seconds",
-            )
-            self._throughput = meter.create_histogram(
-                "onedata_file_throughput_bytes_per_second",
-                unit="By/s",
-                description="Observed data transfer throughput in bytes per second",
+                read_bytes=meter.create_counter(
+                    "onedata_read_bytes",
+                    unit="By",
+                    description="Total bytes read from Onedata",
+                ),
+                written_bytes=meter.create_counter(
+                    "onedata_written_bytes",
+                    unit="By",
+                    description="Total bytes written to Onedata",
+                ),
+                read_duration=meter.create_histogram(
+                    "onedata_read_duration",
+                    unit="s",
+                    description="Latency of read operations in seconds",
+                ),
+                write_duration=meter.create_histogram(
+                    "onedata_write_duration",
+                    unit="s",
+                    description="Latency of write operations in seconds",
+                ),
+                throughput=meter.create_histogram(
+                    "onedata_file_throughput_bytes_per_second",
+                    unit="By/s",
+                    description="Observed data transfer throughput in bytes per second",
+                ),
             )
             self.enabled = True
             logger.debug(
@@ -169,6 +183,7 @@ class OnedataMetrics:
         space_id: str,
         file_id: str,
         provider_id: str,
+        *,
         byte_count: int,
         latency_s: float,
     ) -> None:
@@ -195,17 +210,18 @@ class OnedataMetrics:
             "provider_id": provider_id,
             "operation": "read",
         }
-        self._access_total.add(1, attrs)
-        self._read_bytes.add(byte_count, attrs)
-        self._read_duration.record(latency_s, attrs)
+        self._instruments.access_total.add(1, attrs)
+        self._instruments.read_bytes.add(byte_count, attrs)
+        self._instruments.read_duration.record(latency_s, attrs)
         if latency_s > 0:
-            self._throughput.record(byte_count / latency_s, attrs)
+            self._instruments.throughput.record(byte_count / latency_s, attrs)
 
     def record_write(
         self,
         space_id: str,
         file_id: str,
         provider_id: str,
+        *,
         byte_count: int,
         latency_s: float,
     ) -> None:
@@ -232,11 +248,11 @@ class OnedataMetrics:
             "provider_id": provider_id,
             "operation": "write",
         }
-        self._access_total.add(1, attrs)
-        self._written_bytes.add(byte_count, attrs)
-        self._write_duration.record(latency_s, attrs)
+        self._instruments.access_total.add(1, attrs)
+        self._instruments.written_bytes.add(byte_count, attrs)
+        self._instruments.write_duration.record(latency_s, attrs)
         if latency_s > 0:
-            self._throughput.record(byte_count / latency_s, attrs)
+            self._instruments.throughput.record(byte_count / latency_s, attrs)
 
     def shutdown(self) -> None:
         """Flush pending metrics and shut down the provider."""
