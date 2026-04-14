@@ -68,9 +68,15 @@ class OnedataFile(AbstractBufferedFile):  # type: ignore[misc]
             self.space_name, file_id=self.file_id, offset=start, size=size
         )
         result = bytes(content) if content is not None else b""
+        # pylint: disable=protected-access
+        space_id = (
+            self.fs._get_space_id(self.space_name) if self.fs.metrics.enabled else ""
+        )
         self.fs.metrics.record_read(
-            self.space_name, self.file_path, self.file_id,
-            len(result), time.monotonic() - t0,
+            space_id,
+            str(self.file_id),
+            len(result),
+            time.monotonic() - t0,
         )
         return result
 
@@ -90,9 +96,15 @@ class OnedataFile(AbstractBufferedFile):  # type: ignore[misc]
         self.fs.client.put_file_content(
             self.space_name, data=data, file_id=self.file_id, offset=self.offset
         )
+        # pylint: disable=protected-access
+        space_id = (
+            self.fs._get_space_id(self.space_name) if self.fs.metrics.enabled else ""
+        )
         self.fs.metrics.record_write(
-            self.space_name, self.file_path, self.file_id,
-            len(data), time.monotonic() - t0,
+            space_id,
+            str(self.file_id),
+            len(data),
+            time.monotonic() - t0,
         )
 
         if self.fs.auto_mkdir and self.path.count("/") > 1:
@@ -222,6 +234,9 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
             export_interval_ms=otlp_export_interval_ms,
         )
 
+        # Cache for space name → space ID (file ID of the space root directory)
+        self._space_id_cache: Dict[str, str] = {}
+
     @classmethod
     def _strip_protocol(cls, path: str) -> str:
         """Remove the protocol from a path."""
@@ -238,6 +253,16 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
         """Get file ID for a given space and path."""
         file_id = self.client.get_file_id(space_name, file_path=file_path)
         return str(file_id)
+
+    def _get_space_id(self, space_name: str) -> str:
+        """Return the Onedata space ID for *space_name*, resolving it on first use.
+
+        The space ID is the file ID of the space root directory.  Results are
+        cached per filesystem instance to avoid repeated round-trips.
+        """
+        if space_name not in self._space_id_cache:
+            self._space_id_cache[space_name] = self.client.get_space_id(space_name)
+        return self._space_id_cache[space_name]
 
     def _get_file_size(self, space_name: str, file_path: Optional[str] = None) -> int:
         """Get file size for a given space and path."""
@@ -398,10 +423,15 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
         if not space_name or not file_path:
             raise FileNotFoundError(f"Invalid path: {path}")
 
-        # Resolve file_id for metric labels when monitoring is active.
-        # The extra round-trip is only incurred when metrics are enabled.
-        file_id: Optional[str] = None
+        # Resolve space_id and file_id for metric labels when monitoring is active.
+        # The extra round-trips are only incurred when metrics are enabled.
+        space_id: str = ""
+        file_id: str = ""
         if self.metrics.enabled:
+            try:
+                space_id = self._get_space_id(space_name)
+            except Exception:  # pylint: disable=broad-except
+                pass
             try:
                 file_id = self._get_file_id(space_name, file_path)
             except Exception:  # pylint: disable=broad-except
@@ -423,8 +453,10 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
 
             result = bytes(content) if content is not None else b""
             self.metrics.record_read(
-                space_name, file_path or "", file_id,
-                len(result), time.monotonic() - t0,
+                space_id,
+                file_id,
+                len(result),
+                time.monotonic() - t0,
             )
             return result
 

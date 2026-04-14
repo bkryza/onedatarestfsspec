@@ -225,8 +225,7 @@ and grouped by space, file, or operation type:
 
 | Attribute | Description |
 |---|---|
-| `space_name` | Onedata space name (space identifier) |
-| `file_path` | Path of the file within the space |
+| `space_id` | Onedata space identifier (file ID of the space root directory) |
 | `file_id` | Onedata internal file identifier |
 | `operation` | `"read"` or `"write"` |
 
@@ -247,13 +246,13 @@ where required by Prometheus).
 
 ```promql
 # Read throughput (bytes/s) averaged over 5 minutes, by space
-rate(onedata_read_bytes_total[5m]) by (space_name)
+rate(onedata_read_bytes_total[5m]) by (space_id)
 
 # 99th-percentile read latency per file
-histogram_quantile(0.99, rate(onedata_read_duration_bucket[5m])) by (file_path)
+histogram_quantile(0.99, rate(onedata_read_duration_bucket[5m])) by (file_id)
 
 # Write operation rate
-rate(onedata_file_access_total[1m]) by (space_name, operation)
+rate(onedata_file_access_total[1m]) by (space_id, operation)
 ```
 
 ## Path Format

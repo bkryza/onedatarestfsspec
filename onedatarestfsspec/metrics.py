@@ -63,8 +63,8 @@ class OnedataMetrics:
     """OpenTelemetry metrics collector for OnedataFileSystem operations.
 
     Instruments are created once per instance and report the following metrics,
-    each labelled with ``space_name``, ``file_path``, ``file_id``, and
-    (where applicable) ``operation`` (``"read"`` or ``"write"``):
+    each labeled with ``space_id``, ``file_id``, and ``operation``
+    (``"read"`` or ``"write"``):
 
     * ``onedata_file_access_total``            – counter, total read + write ops
     * ``onedata_read_bytes``                   – counter, cumulative bytes read
@@ -111,8 +111,7 @@ class OnedataMetrics:
             return
 
         resolved_protocol = (
-            protocol
-            or os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
+            protocol or os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
         ).strip()
 
         try:
@@ -167,9 +166,8 @@ class OnedataMetrics:
 
     def record_read(
         self,
-        space_name: str,
-        file_path: str,
-        file_id: Optional[str],
+        space_id: str,
+        file_id: str,
         byte_count: int,
         latency_s: float,
     ) -> None:
@@ -177,12 +175,10 @@ class OnedataMetrics:
 
         Parameters
         ----------
-        space_name : str
-            Onedata space name (acts as the space identifier).
-        file_path : str
-            Path of the file within the space.
-        file_id : str, optional
-            Onedata file identifier; empty string when unavailable.
+        space_id : str
+            Onedata space identifier (file ID of the space root directory).
+        file_id : str
+            Onedata file identifier.
         byte_count : int
             Number of bytes transferred.
         latency_s : float
@@ -191,9 +187,8 @@ class OnedataMetrics:
         if not self.enabled:
             return
         attrs = {
-            "space_name": space_name,
-            "file_path": file_path,
-            "file_id": file_id or "",
+            "space_id": space_id,
+            "file_id": file_id,
             "operation": "read",
         }
         self._access_total.add(1, attrs)
@@ -204,9 +199,8 @@ class OnedataMetrics:
 
     def record_write(
         self,
-        space_name: str,
-        file_path: str,
-        file_id: Optional[str],
+        space_id: str,
+        file_id: str,
         byte_count: int,
         latency_s: float,
     ) -> None:
@@ -214,12 +208,10 @@ class OnedataMetrics:
 
         Parameters
         ----------
-        space_name : str
-            Onedata space name (acts as the space identifier).
-        file_path : str
-            Path of the file within the space.
-        file_id : str, optional
-            Onedata file identifier; empty string when unavailable.
+        space_id : str
+            Onedata space identifier (file ID of the space root directory).
+        file_id : str
+            Onedata file identifier.
         byte_count : int
             Number of bytes transferred.
         latency_s : float
@@ -228,9 +220,8 @@ class OnedataMetrics:
         if not self.enabled:
             return
         attrs = {
-            "space_name": space_name,
-            "file_path": file_path,
-            "file_id": file_id or "",
+            "space_id": space_id,
+            "file_id": file_id,
             "operation": "write",
         }
         self._access_total.add(1, attrs)
