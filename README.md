@@ -12,6 +12,7 @@ OnedataRESTFSSpec is an fsspec filesystem implementation for Onedata, providing 
 - Configurable provider preferences
 - Environment variable configuration
 - URL-based configuration
+- OpenTelemetry metrics export via OTLP
 
 ## Installation
 
@@ -135,6 +136,124 @@ if fs.exists('/your-space/some/file.txt'):
 files = fs.ls('/your-space/', detail=True)
 for file_info in files:
     print(f"{file_info['name']}: {file_info['size']} bytes")
+```
+
+## OpenTelemetry Metrics
+
+OnedataRESTFSSpec can export data-access metrics to any OpenTelemetry-compatible
+collector (Prometheus, Grafana Tempo, Jaeger, etc.) using the OTLP protocol.
+
+### Installation
+
+Metrics support is an optional extra.  Install the HTTP exporter (recommended)
+or the gRPC exporter, or both:
+
+```bash
+# HTTP/protobuf transport (default)
+pip install 'onedatarestfsspec[monitoring]'
+
+# gRPC transport only
+pip install opentelemetry-exporter-otlp-proto-grpc
+```
+
+### Enabling metrics
+
+Metrics are **disabled by default**.  Enable them either via a constructor
+keyword argument or an environment variable:
+
+```python
+import fsspec
+
+fs = fsspec.filesystem(
+    'onedata',
+    onezone_host='https://datahub.egi.eu',
+    token='your_access_token',
+    metrics_enabled=True,
+)
+```
+
+```bash
+export ONEDATA_METRICS_ENABLED=true
+```
+
+### Configuring the OTLP exporter
+
+The exporter is configured through standard OpenTelemetry environment variables
+or the corresponding constructor keyword arguments.  Keyword arguments take
+precedence over environment variables.
+
+| Constructor kwarg | Environment variable | Default | Description |
+|---|---|---|---|
+| `metrics_enabled` | `ONEDATA_METRICS_ENABLED` | `false` | Enable metrics export |
+| `otlp_endpoint` | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | collector default | Full URL of the OTLP collector endpoint |
+| `otlp_protocol` | `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` | Transport protocol: `http/protobuf` or `grpc` |
+| `otlp_export_interval_ms` | — | `60000` | How often metrics are flushed (milliseconds) |
+
+**Example — HTTP/protobuf transport:**
+
+```python
+fs = fsspec.filesystem(
+    'onedata',
+    onezone_host='https://dev-onezone.default.svc.cluster.local',
+    token='your_access_token',
+    metrics_enabled=True,
+    verify_ssl=False,
+    otlp_endpoint='http://localhost:9090/api/v1/otlp/v1/metrics',
+    otlp_protocol='http/protobuf',
+    otlp_export_interval_ms=30_000,
+)
+```
+
+**Example — gRPC transport via environment variables:**
+
+```bash
+export ONEDATA_METRICS_ENABLED=true
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://otel-collector.example.com:4317
+```
+
+```python
+fs = fsspec.filesystem('onedata',
+                       onezone_host='https://datahub.egi.eu',
+                       token='your_access_token')
+```
+
+### Available metrics
+
+All metrics carry the following attributes, allowing time-series to be filtered
+and grouped by space, file, or operation type:
+
+| Attribute | Description |
+|---|---|
+| `space_name` | Onedata space name (space identifier) |
+| `file_path` | Path of the file within the space |
+| `file_id` | Onedata internal file identifier |
+| `operation` | `"read"` or `"write"` |
+
+| Metric name | Type | Unit | Description |
+|---|---|---|---|
+| `onedata_file_access_total` | Counter | ops | Total number of read and write operations. Use the `operation` attribute to distinguish reads from writes. |
+| `onedata_read_bytes` | Counter | bytes | Cumulative bytes read from Onedata. |
+| `onedata_written_bytes` | Counter | bytes | Cumulative bytes written to Onedata. |
+| `onedata_read_duration` | Histogram | seconds | Per-operation read latency. |
+| `onedata_write_duration` | Histogram | seconds | Per-operation write latency. |
+| `onedata_file_throughput_bytes_per_second` | Histogram | bytes/s | Observed transfer throughput (`bytes / duration`) for each operation. |
+
+### Example: querying metrics in Prometheus
+
+After scraping via an OpenTelemetry Collector with a Prometheus exporter, the
+metrics are available under their original names (dots replaced by underscores
+where required by Prometheus).
+
+```promql
+# Read throughput (bytes/s) averaged over 5 minutes, by space
+rate(onedata_read_bytes_total[5m]) by (space_name)
+
+# 99th-percentile read latency per file
+histogram_quantile(0.99, rate(onedata_read_duration_bucket[5m])) by (file_path)
+
+# Write operation rate
+rate(onedata_file_access_total[1m]) by (space_name, operation)
 ```
 
 ## Path Format

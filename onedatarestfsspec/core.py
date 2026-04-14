@@ -1,7 +1,9 @@
 """Core implementation of OnedataFileSystem for fsspec."""
 
 import logging
+import os
 import posixpath
+import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
@@ -15,6 +17,7 @@ from onedatafilerestclient.errors import OnedataError
 from onedatafilerestclient.types import FileId
 
 from .config import get_onedata_config_from_env, merge_config
+from .metrics import OnedataMetrics
 from .utils import split_onedata_path
 
 logger = logging.getLogger(__name__)
@@ -60,10 +63,16 @@ class OnedataFile(AbstractBufferedFile):  # type: ignore[misc]
             self.file_id = self.fs._get_file_id(self.space_name, self.file_path)
 
         size = end - start
+        t0 = time.monotonic()
         content = self.fs.client.get_file_content(
             self.space_name, file_id=self.file_id, offset=start, size=size
         )
-        return bytes(content) if content is not None else b""
+        result = bytes(content) if content is not None else b""
+        self.fs.metrics.record_read(
+            self.space_name, self.file_path, self.file_id,
+            len(result), time.monotonic() - t0,
+        )
+        return result
 
     def _upload_chunk(self, final: bool = False) -> bool:
         """Upload buffered data to Onedata."""
@@ -77,8 +86,13 @@ class OnedataFile(AbstractBufferedFile):  # type: ignore[misc]
             )
 
         data = self.buffer.getvalue()
+        t0 = time.monotonic()
         self.fs.client.put_file_content(
             self.space_name, data=data, file_id=self.file_id, offset=self.offset
+        )
+        self.fs.metrics.record_write(
+            self.space_name, self.file_path, self.file_id,
+            len(data), time.monotonic() - t0,
         )
 
         if self.fs.auto_mkdir and self.path.count("/") > 1:
@@ -115,6 +129,10 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
         verify_ssl: bool = True,
         timeout: Optional[Union[float, Tuple[float, float]]] = 30,
         auto_mkdir: bool = True,
+        metrics_enabled: bool = False,
+        otlp_endpoint: Optional[str] = None,
+        otlp_protocol: Optional[str] = None,
+        otlp_export_interval_ms: int = 60_000,
         **kwargs: Any,
     ):
         """Initialize OnedataFileSystem.
@@ -133,6 +151,22 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
             Connection timeout
         auto_mkdir : bool, default True
             Whether to automatically create parent directories
+        metrics_enabled : bool, default False
+            Enable OpenTelemetry metrics export.  Can also be activated by
+            setting the ``ONEDATA_METRICS_ENABLED=true`` environment variable.
+            Requires ``opentelemetry-sdk`` and an OTLP exporter to be installed
+            (``pip install 'onedatarestfsspec[monitoring]'``).
+        otlp_endpoint : str, optional
+            Override the OTLP collector endpoint.  When omitted the exporter
+            reads ``OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`` /
+            ``OTEL_EXPORTER_OTLP_ENDPOINT`` from the environment.
+        otlp_protocol : str, optional
+            Transport protocol: ``"grpc"`` or ``"http/protobuf"`` (default).
+            Falls back to the ``OTEL_EXPORTER_OTLP_PROTOCOL`` environment
+            variable, then ``"http/protobuf"``.
+        otlp_export_interval_ms : int, default 60000
+            How often the periodic metric reader flushes to the collector
+            (milliseconds).
         """
         super().__init__(**kwargs)
 
@@ -175,6 +209,17 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
             preferred_providers=self.preferred_providers,
             verify_ssl=self.verify_ssl,
             timeout=self.timeout,
+        )
+
+        # Metrics — honour both the kwarg and the env-var override
+        _metrics_enabled = metrics_enabled or (
+            os.environ.get("ONEDATA_METRICS_ENABLED", "").lower() == "true"
+        )
+        self.metrics = OnedataMetrics(
+            enabled=_metrics_enabled,
+            endpoint=otlp_endpoint,
+            protocol=otlp_protocol,
+            export_interval_ms=otlp_export_interval_ms,
         )
 
     @classmethod
@@ -353,20 +398,35 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
         if not space_name or not file_path:
             raise FileNotFoundError(f"Invalid path: {path}")
 
+        # Resolve file_id for metric labels when monitoring is active.
+        # The extra round-trip is only incurred when metrics are enabled.
+        file_id: Optional[str] = None
+        if self.metrics.enabled:
+            try:
+                file_id = self._get_file_id(space_name, file_path)
+            except Exception:  # pylint: disable=broad-except
+                pass
+
         try:
+            t0 = time.monotonic()
             if start is not None or end is not None:
                 # Get file size for bounds checking
                 file_size = self._get_file_size(space_name, file_path)
                 start = start or 0
                 end = end or file_size
                 size = end - start
-
                 content = self.client.get_file_content(
                     space_name, file_path=file_path, offset=start, size=size
                 )
-                return bytes(content) if content is not None else b""
-            content = self.client.get_file_content(space_name, file_path=file_path)
-            return bytes(content) if content is not None else b""
+            else:
+                content = self.client.get_file_content(space_name, file_path=file_path)
+
+            result = bytes(content) if content is not None else b""
+            self.metrics.record_read(
+                space_name, file_path or "", file_id,
+                len(result), time.monotonic() - t0,
+            )
+            return result
 
         except OnedataError as e:
             if "enoent" in str(e).lower():
