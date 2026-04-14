@@ -63,8 +63,8 @@ class OnedataMetrics:
     """OpenTelemetry metrics collector for OnedataFileSystem operations.
 
     Instruments are created once per instance and report the following metrics,
-    each labeled with ``space_id``, ``file_id``, and ``operation``
-    (``"read"`` or ``"write"``):
+    each labeled with ``space_id``, ``file_id``, ``provider_id``, and
+    ``operation`` (``"read"`` or ``"write"``):
 
     * ``onedata_file_access_total``            – counter, total read + write ops
     * ``onedata_read_bytes``                   – counter, cumulative bytes read
@@ -168,6 +168,7 @@ class OnedataMetrics:
         self,
         space_id: str,
         file_id: str,
+        provider_id: str,
         byte_count: int,
         latency_s: float,
     ) -> None:
@@ -179,6 +180,8 @@ class OnedataMetrics:
             Onedata space identifier (file ID of the space root directory).
         file_id : str
             Onedata file identifier.
+        provider_id : str
+            Domain of the Oneprovider that served the request.
         byte_count : int
             Number of bytes transferred.
         latency_s : float
@@ -189,6 +192,7 @@ class OnedataMetrics:
         attrs = {
             "space_id": space_id,
             "file_id": file_id,
+            "provider_id": provider_id,
             "operation": "read",
         }
         self._access_total.add(1, attrs)
@@ -201,6 +205,7 @@ class OnedataMetrics:
         self,
         space_id: str,
         file_id: str,
+        provider_id: str,
         byte_count: int,
         latency_s: float,
     ) -> None:
@@ -212,6 +217,8 @@ class OnedataMetrics:
             Onedata space identifier (file ID of the space root directory).
         file_id : str
             Onedata file identifier.
+        provider_id : str
+            Domain of the Oneprovider that served the request.
         byte_count : int
             Number of bytes transferred.
         latency_s : float
@@ -222,6 +229,7 @@ class OnedataMetrics:
         attrs = {
             "space_id": space_id,
             "file_id": file_id,
+            "provider_id": provider_id,
             "operation": "write",
         }
         self._access_total.add(1, attrs)

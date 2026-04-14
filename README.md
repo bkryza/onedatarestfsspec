@@ -192,6 +192,8 @@ precedence over environment variables.
 **Example — HTTP/protobuf transport:**
 
 ```python
+import fsspec
+
 fs = fsspec.filesystem(
     'onedata',
     onezone_host='https://dev-onezone.default.svc.cluster.local',
@@ -225,8 +227,9 @@ and grouped by space, file, or operation type:
 
 | Attribute | Description |
 |---|---|
-| `space_id` | Onedata space identifier (file ID of the space root directory) |
+| `space_id` | Onedata space identifier |
 | `file_id` | Onedata internal file identifier |
+| `provider_id` | Domain of the Oneprovider that served the request |
 | `operation` | `"read"` or `"write"` |
 
 | Metric name | Type | Unit | Description |

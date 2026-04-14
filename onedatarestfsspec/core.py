@@ -69,12 +69,15 @@ class OnedataFile(AbstractBufferedFile):  # type: ignore[misc]
         )
         result = bytes(content) if content is not None else b""
         # pylint: disable=protected-access
-        space_id = (
-            self.fs._get_space_id(self.space_name) if self.fs.metrics.enabled else ""
-        )
+        if self.fs.metrics.enabled:
+            space_id = self.fs._get_space_id(self.space_name)
+            provider_id = self.fs._get_provider_id(self.space_name)
+        else:
+            space_id = provider_id = ""
         self.fs.metrics.record_read(
             space_id,
             str(self.file_id),
+            provider_id,
             len(result),
             time.monotonic() - t0,
         )
@@ -97,12 +100,15 @@ class OnedataFile(AbstractBufferedFile):  # type: ignore[misc]
             self.space_name, data=data, file_id=self.file_id, offset=self.offset
         )
         # pylint: disable=protected-access
-        space_id = (
-            self.fs._get_space_id(self.space_name) if self.fs.metrics.enabled else ""
-        )
+        if self.fs.metrics.enabled:
+            space_id = self.fs._get_space_id(self.space_name)
+            provider_id = self.fs._get_provider_id(self.space_name)
+        else:
+            space_id = provider_id = ""
         self.fs.metrics.record_write(
             space_id,
             str(self.file_id),
+            provider_id,
             len(data),
             time.monotonic() - t0,
         )
@@ -264,6 +270,24 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
             self._space_id_cache[space_name] = self.client.get_space_id(space_name)
         return self._space_id_cache[space_name]
 
+    def _get_provider_id(self, space_name: str) -> str:
+        """Return the id of the Oneprovider selected for *space_name*.
+
+        Delegates to the provider selector so that the result reflects the
+        same priority ordering (preferred providers, version, graylisting)
+        used by the REST client when dispatching actual requests.  The
+        underlying token-scope lookup is cached by the Onezone client for
+        a short period, so repeated calls within that window are cheap.
+        """
+        try:
+            # pylint: disable=protected-access
+            providers = self.client._provider_selector.list_available_space_providers(
+                space_name, oz_rest_client=self.client._oz_client
+            )
+            return providers[0].id if providers else ""
+        except Exception:  # pylint: disable=broad-except
+            return ""
+
     def _get_file_size(self, space_name: str, file_path: Optional[str] = None) -> int:
         """Get file size for a given space and path."""
         attrs = self.client.get_attributes(
@@ -423,10 +447,11 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
         if not space_name or not file_path:
             raise FileNotFoundError(f"Invalid path: {path}")
 
-        # Resolve space_id and file_id for metric labels when monitoring is active.
+        # Resolve metric labels when monitoring is active.
         # The extra round-trips are only incurred when metrics are enabled.
         space_id: str = ""
         file_id: str = ""
+        provider_id: str = ""
         if self.metrics.enabled:
             try:
                 space_id = self._get_space_id(space_name)
@@ -436,6 +461,7 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
                 file_id = self._get_file_id(space_name, file_path)
             except Exception:  # pylint: disable=broad-except
                 pass
+            provider_id = self._get_provider_id(space_name)
 
         try:
             t0 = time.monotonic()
@@ -455,6 +481,7 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]
             self.metrics.record_read(
                 space_id,
                 file_id,
+                provider_id,
                 len(result),
                 time.monotonic() - t0,
             )
