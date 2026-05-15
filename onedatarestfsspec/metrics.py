@@ -48,7 +48,7 @@ def _build_exporter(endpoint: Optional[str], protocol: str) -> Any:
         try:
             # pylint: disable=import-outside-toplevel
             from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
-                OTLPMetricExporter,
+                OTLPMetricExporter as GrpcOTLPMetricExporter,
             )
         except ImportError as exc:
             raise ImportError(
@@ -56,20 +56,21 @@ def _build_exporter(endpoint: Optional[str], protocol: str) -> Any:
                 "protocol.  Install it with: "
                 "pip install opentelemetry-exporter-otlp-proto-grpc"
             ) from exc
-    else:  # http/protobuf (default) or http/json
-        try:
-            # pylint: disable=import-outside-toplevel
-            from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
-                OTLPMetricExporter,
-            )  # type: ignore
-        except ImportError as exc:
-            raise ImportError(
-                "opentelemetry-exporter-otlp-proto-http is required for the HTTP "
-                "protocol.  Install it with: "
-                "pip install opentelemetry-exporter-otlp-proto-http"
-            ) from exc
+        return GrpcOTLPMetricExporter(**kwargs)
 
-    return OTLPMetricExporter(**kwargs)
+    # http/protobuf (default) or http/json
+    try:
+        # pylint: disable=import-outside-toplevel
+        from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
+            OTLPMetricExporter as HttpOTLPMetricExporter,
+        )
+    except ImportError as exc:
+        raise ImportError(
+            "opentelemetry-exporter-otlp-proto-http is required for the HTTP "
+            "protocol.  Install it with: "
+            "pip install opentelemetry-exporter-otlp-proto-http"
+        ) from exc
+    return HttpOTLPMetricExporter(**kwargs)
 
 
 class OnedataMetrics:
@@ -116,6 +117,7 @@ class OnedataMetrics:
         endpoint: Optional[str] = None,
         protocol: Optional[str] = None,
         export_interval_ms: int = 60_000,
+        *,
         session_id: Optional[str] = None,
     ) -> None:
         self.enabled = False

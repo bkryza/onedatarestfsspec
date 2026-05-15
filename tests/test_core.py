@@ -1,5 +1,6 @@
 """Tests for OnedataFileSystem core functionality."""
 
+import os
 import uuid
 from unittest.mock import Mock, patch
 
@@ -325,6 +326,7 @@ class TestOtlpSessionId:
             return OnedataFileSystem(
                 onezone_host="https://onezone.example.com",
                 token="test_token",
+                skip_instance_cache=True,
                 **kwargs,
             )
 
@@ -349,8 +351,6 @@ class TestOtlpSessionId:
         """When neither kwarg nor env var is set a valid UUID4 is generated."""
         with patch.dict("os.environ", {}, clear=False):
             # Ensure the env var is absent
-            import os
-
             os.environ.pop("ONEDATA_OTLP_SESSION_ID", None)
             fs = self._make_fs()
 
@@ -361,16 +361,12 @@ class TestOtlpSessionId:
 
     def test_session_id_stable_across_calls(self):
         """The session ID must not change between successive property accesses."""
-        import os
-
         os.environ.pop("ONEDATA_OTLP_SESSION_ID", None)
         fs = self._make_fs()
         assert fs.otlp_session_id == fs.otlp_session_id
 
     def test_two_instances_get_different_uuids(self):
         """Two filesystem instances without an explicit ID should get different UUIDs."""
-        import os
-
         os.environ.pop("ONEDATA_OTLP_SESSION_ID", None)
         fs1 = self._make_fs()
         fs2 = self._make_fs()
