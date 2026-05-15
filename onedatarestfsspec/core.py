@@ -151,6 +151,7 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]  # pylint: di
         otlp_endpoint: Optional[str] = None,
         otlp_protocol: Optional[str] = None,
         otlp_export_interval_ms: int = 60_000,
+        otlp_session_id: Optional[str] = None,
         **kwargs: Any,
     ):
         """Initialize OnedataFileSystem.
@@ -185,6 +186,12 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]  # pylint: di
         otlp_export_interval_ms : int, default 60000
             How often the periodic metric reader flushes to the collector
             (milliseconds).
+        otlp_session_id : str, optional
+            Session identifier attached to every metric as the ``session_id``
+            attribute.  When omitted the value is read from the
+            ``ONEDATA_OTLP_SESSION_ID`` environment variable; if that is also
+            unset a random UUID is generated once and reused for the lifetime
+            of this filesystem instance.
         """
         super().__init__(**kwargs)
 
@@ -213,13 +220,14 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]  # pylint: di
             timeout=self.timeout,
         )
 
-        # Metrics — honour both the kwarg and the env-var override
+        # Metrics — honor both the kwarg and the env-var override
         self.metrics = OnedataMetrics(
             enabled=metrics_enabled
             or (os.environ.get("ONEDATA_METRICS_ENABLED", "").lower() == "true"),
             endpoint=otlp_endpoint,
             protocol=otlp_protocol,
             export_interval_ms=otlp_export_interval_ms,
+            session_id=otlp_session_id,
         )
 
         # Cache for space name → space ID (file ID of the space root directory)
@@ -697,6 +705,11 @@ class OnedataFileSystem(AbstractFileSystem):  # type: ignore[misc]  # pylint: di
     def fsid(self) -> str:
         """Get filesystem ID."""
         return "onedata"
+
+    @property
+    def otlp_session_id(self) -> str:
+        """Return the OTLP session ID used to label all metrics for this instance."""
+        return self.metrics.session_id
 
     def sign(self, path: str, expiration: int = 3600, **kwargs: Any) -> str:
         """Sign a path (not implemented)."""

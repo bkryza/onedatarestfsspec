@@ -1,5 +1,6 @@
 """Tests for OnedataFileSystem core functionality."""
 
+import uuid
 from unittest.mock import Mock, patch
 
 import pytest
@@ -301,6 +302,81 @@ class TestOnedataFile:
 
             assert result is True
             assert file_obj.offset == 10
+
+
+class TestOtlpSessionId:
+    """Test OTLP session ID handling on OnedataFileSystem."""
+
+    def _make_fs(self, **kwargs):
+        """Helper: build a filesystem instance with a mocked REST client."""
+        with (
+            patch("onedatarestfsspec.core.OnedataFileRESTClient"),
+            patch(
+                "onedatarestfsspec.core.get_onedata_config_from_env",
+                return_value={
+                    "onezone_host": None,
+                    "token": None,
+                    "preferred_providers": None,
+                    "verify_ssl": True,
+                    "timeout": 30,
+                },
+            ),
+        ):
+            return OnedataFileSystem(
+                onezone_host="https://onezone.example.com",
+                token="test_token",
+                **kwargs,
+            )
+
+    def test_explicit_session_id_is_used(self):
+        """When otlp_session_id is passed explicitly it must be returned as-is."""
+        fs = self._make_fs(otlp_session_id="my-session-42")
+        assert fs.otlp_session_id == "my-session-42"
+
+    def test_env_var_session_id_is_used(self):
+        """ONEDATA_OTLP_SESSION_ID env var is used when no kwarg is given."""
+        with patch.dict("os.environ", {"ONEDATA_OTLP_SESSION_ID": "env-session-99"}):
+            fs = self._make_fs()
+        assert fs.otlp_session_id == "env-session-99"
+
+    def test_kwarg_takes_precedence_over_env_var(self):
+        """Constructor kwarg must win over the environment variable."""
+        with patch.dict("os.environ", {"ONEDATA_OTLP_SESSION_ID": "env-session"}):
+            fs = self._make_fs(otlp_session_id="kwarg-session")
+        assert fs.otlp_session_id == "kwarg-session"
+
+    def test_auto_generated_uuid_when_unset(self):
+        """When neither kwarg nor env var is set a valid UUID4 is generated."""
+        with patch.dict("os.environ", {}, clear=False):
+            # Ensure the env var is absent
+            import os
+            os.environ.pop("ONEDATA_OTLP_SESSION_ID", None)
+            fs = self._make_fs()
+
+        session_id = fs.otlp_session_id
+        # Must be a valid UUID string
+        parsed = uuid.UUID(session_id)
+        assert str(parsed) == session_id
+
+    def test_session_id_stable_across_calls(self):
+        """The session ID must not change between successive property accesses."""
+        import os
+        os.environ.pop("ONEDATA_OTLP_SESSION_ID", None)
+        fs = self._make_fs()
+        assert fs.otlp_session_id == fs.otlp_session_id
+
+    def test_two_instances_get_different_uuids(self):
+        """Two filesystem instances without an explicit ID should get different UUIDs."""
+        import os
+        os.environ.pop("ONEDATA_OTLP_SESSION_ID", None)
+        fs1 = self._make_fs()
+        fs2 = self._make_fs()
+        assert fs1.otlp_session_id != fs2.otlp_session_id
+
+    def test_session_id_propagated_to_metrics(self):
+        """The session ID stored on the filesystem must match the one in metrics."""
+        fs = self._make_fs(otlp_session_id="propagation-check")
+        assert fs.metrics.session_id == fs.otlp_session_id
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 import logging
 import os
+import uuid
 from typing import Any, Dict, NamedTuple, Optional
 
 logger = logging.getLogger(__name__)
@@ -75,8 +76,8 @@ class OnedataMetrics:
     """OpenTelemetry metrics collector for OnedataFileSystem operations.
 
     Instruments are created once per instance and report the following metrics,
-    each labeled with ``space_id``, ``file_id``, ``provider_id``, and
-    ``operation`` (``"read"`` or ``"write"``):
+    each labeled with ``space_id``, ``file_id``, ``provider_id``,
+    ``session_id``, and ``operation`` (``"read"`` or ``"write"``):
 
     * ``onedata_file_access_total``            – counter, total read + write ops
     * ``onedata_read_bytes``                   – counter, cumulative bytes read
@@ -101,6 +102,12 @@ class OnedataMetrics:
     export_interval_ms : int
         How often the periodic reader flushes metrics to the collector
         (milliseconds, default 60 000).
+    session_id : str, optional
+        Identifier attached to every metric as the ``session_id`` attribute.
+        When *None* a random UUID is generated automatically and reused for
+        the lifetime of this ``OnedataMetrics`` instance.  Can also be set
+        via the ``ONEDATA_OTLP_SESSION_ID`` environment variable (the
+        constructor argument takes precedence).
     """
 
     def __init__(
@@ -109,8 +116,14 @@ class OnedataMetrics:
         endpoint: Optional[str] = None,
         protocol: Optional[str] = None,
         export_interval_ms: int = 60_000,
+        session_id: Optional[str] = None,
     ) -> None:
         self.enabled = False
+        self.session_id: str = (
+            session_id
+            or os.environ.get("ONEDATA_OTLP_SESSION_ID", "")
+            or str(uuid.uuid4())
+        )
 
         if not enabled:
             return
@@ -208,6 +221,7 @@ class OnedataMetrics:
             "space_id": space_id,
             "file_id": file_id,
             "provider_id": provider_id,
+            "session_id": self.session_id,
             "operation": "read",
         }
         self._instruments.access_total.add(1, attrs)
@@ -246,6 +260,7 @@ class OnedataMetrics:
             "space_id": space_id,
             "file_id": file_id,
             "provider_id": provider_id,
+            "session_id": self.session_id,
             "operation": "write",
         }
         self._instruments.access_total.add(1, attrs)

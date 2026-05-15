@@ -188,6 +188,7 @@ precedence over environment variables.
 | `otlp_endpoint` | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | collector default | Full URL of the OTLP collector endpoint |
 | `otlp_protocol` | `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` | Transport protocol: `http/protobuf` or `grpc` |
 | `otlp_export_interval_ms` | — | `60000` | How often metrics are flushed (milliseconds) |
+| `otlp_session_id` | `ONEDATA_OTLP_SESSION_ID` | auto-generated UUID | Session identifier attached to every metric as the `session_id` attribute. Useful for correlating metrics from a single run across restarts or multiple filesystem instances. |
 
 **Example — HTTP/protobuf transport:**
 
@@ -204,6 +205,29 @@ fs = fsspec.filesystem(
     otlp_protocol='http/protobuf',
     otlp_export_interval_ms=30_000,
 )
+```
+
+**Example — pinning a session ID:**
+
+```python
+import fsspec
+
+fs = fsspec.filesystem(
+    'onedata',
+    onezone_host='https://datahub.egi.eu',
+    token='your_access_token',
+    metrics_enabled=True,
+    otlp_session_id='my-experiment-run-1',
+)
+
+# Retrieve the active session ID (auto-generated when not set explicitly)
+print(fs.otlp_session_id)
+```
+
+```bash
+# Or via environment variable — any filesystem instance that does not
+# receive an explicit otlp_session_id will pick this value up automatically.
+export ONEDATA_OTLP_SESSION_ID=my-experiment-run-1
 ```
 
 **Example — gRPC transport via environment variables:**
@@ -223,13 +247,14 @@ fs = fsspec.filesystem('onedata',
 ### Available metrics
 
 All metrics carry the following attributes, allowing time-series to be filtered
-and grouped by space, file, or operation type:
+and grouped by space, file, session, or operation type:
 
 | Attribute | Description |
 |---|---|
 | `space_id` | Onedata space identifier |
 | `file_id` | Onedata internal file identifier |
 | `provider_id` | Domain of the Oneprovider that served the request |
+| `session_id` | Identifier for this filesystem instance's session (see `otlp_session_id`) |
 | `operation` | `"read"` or `"write"` |
 
 | Metric name | Type | Unit | Description |
@@ -256,6 +281,9 @@ histogram_quantile(0.99, rate(onedata_read_duration_bucket[5m])) by (file_id)
 
 # Write operation rate
 rate(onedata_file_access_total[1m]) by (space_id, operation)
+
+# Total bytes read for a specific session
+sum(onedata_read_bytes_total{session_id="my-experiment-run-1"})
 ```
 
 ## Path Format
