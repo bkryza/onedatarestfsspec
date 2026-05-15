@@ -59,9 +59,9 @@ def _build_exporter(endpoint: Optional[str], protocol: str) -> Any:
     else:  # http/protobuf (default) or http/json
         try:
             # pylint: disable=import-outside-toplevel
-            from opentelemetry.exporter.otlp.proto.http.metric_exporter import (  # type: ignore
+            from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
                 OTLPMetricExporter,
-            )
+            )  # type: ignore
         except ImportError as exc:
             raise ImportError(
                 "opentelemetry-exporter-otlp-proto-http is required for the HTTP "
